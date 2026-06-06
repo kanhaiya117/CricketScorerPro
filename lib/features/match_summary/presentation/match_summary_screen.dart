@@ -44,7 +44,7 @@ ${match.result ?? 'Match in progress'}''';
           IconButton(
             tooltip: 'Share',
             onPressed: () => SharePlus.instance.share(
-              ShareParams(text: text, subject: 'Cricket Scorer Pro'),
+              ShareParams(text: text, subject: 'Cric Score Pro'),
             ),
             icon: const Icon(Icons.share_outlined),
           ),

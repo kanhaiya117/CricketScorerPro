@@ -46,7 +46,7 @@ class CricketScorerApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => MaterialApp.router(
-    title: 'Cricket Scorer Pro',
+    title: 'Cric Score Pro',
     debugShowCheckedModeBanner: false,
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),

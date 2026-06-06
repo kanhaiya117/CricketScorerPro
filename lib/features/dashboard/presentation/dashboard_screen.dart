@@ -45,7 +45,7 @@ class DashboardScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Cricket Scorer Pro',
+                            'Cric Score Pro',
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.w800,
@@ -71,7 +71,7 @@ class DashboardScreen extends ConsumerWidget {
                 FilledButton.icon(
                   onPressed: () => context.push('/setup'),
                   icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Start New Match'),
+                  label: const Text('Start Match'),
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
