@@ -1,5 +1,6 @@
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/core/services/pdf_scorecard_service.dart';
+import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
@@ -36,11 +37,13 @@ class MatchSummaryScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          match.status == MatchStatus.completed ? 'Match Summary' : 'Scorecard',
+          match.status == MatchStatus.completed
+              ? context.tr('matchSummary')
+              : context.tr('scorecard'),
         ),
         actions: [
           IconButton(
-            tooltip: 'Share full scorecard',
+            tooltip: context.tr('scorecard'),
             onPressed: () async {
               final file = await const PdfScorecardService().generate(match);
               await SharePlus.instance.share(
@@ -133,7 +136,7 @@ class MatchSummaryScreen extends ConsumerWidget {
             if (match.status == MatchStatus.completed)
               FilledButton(
                 onPressed: () => context.go('/'),
-                child: const Text('Back to Dashboard'),
+                child: Text(context.tr('back')),
               ),
           ],
         ),
@@ -176,7 +179,10 @@ class _InningsCard extends StatelessWidget {
             'Extras ${batting.extras}',
           ),
           const Divider(),
-          const Text('Batting', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            context.tr('batting'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           for (final player in batting.players)
             if (player.ballsFaced > 0 || player.isOut)
               ListTile(
@@ -191,7 +197,10 @@ class _InningsCard extends StatelessWidget {
                 ),
               ),
           const Divider(),
-          const Text('Bowling', style: TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            context.tr('bowling'),
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
           for (final player in bowling.players)
             if (player.ballsBowled > 0)
               ListTile(
@@ -226,9 +235,9 @@ class _CurrentPlayers extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Current Players',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            Text(
+              context.tr('currentPlayers'),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
             Text('Striker: ${name(match.battingTeam, match.strikerId)}'),
             Text('Non-striker: ${name(match.battingTeam, match.nonStrikerId)}'),

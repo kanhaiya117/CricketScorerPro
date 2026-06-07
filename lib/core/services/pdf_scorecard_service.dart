@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -9,6 +10,9 @@ class PdfScorecardService {
   const PdfScorecardService();
 
   Future<File> generate(MatchModel match) async {
+    final fallbackFonts = await Future.wait(
+      _fontPaths.map((path) async => pw.Font.ttf(await rootBundle.load(path))),
+    );
     final document = pw.Document(
       title: '${match.teamA.name} vs ${match.teamB.name}',
       author: 'Cric Score Pro - KK Bharat',
@@ -29,6 +33,11 @@ class PdfScorecardService {
 
     document.addPage(
       pw.MultiPage(
+        theme: pw.ThemeData.withFont(
+          base: pw.Font.helvetica(),
+          bold: pw.Font.helveticaBold(),
+          fontFallback: fallbackFonts,
+        ),
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(28),
         header: (context) => pw.Container(
@@ -86,6 +95,8 @@ class PdfScorecardService {
                 ),
               ),
             ),
+          _topPerformers(match),
+          pw.SizedBox(height: 14),
           _innings('1st Innings', first, second, firstBalls),
           if (match.innings == 2) ...[
             pw.SizedBox(height: 14),
@@ -190,6 +201,59 @@ class PdfScorecardService {
     ],
   );
 
+  pw.Widget _topPerformers(MatchModel match) {
+    final ranked = <({PlayerModel player, String team, int score})>[
+      for (final player in match.teamA.players)
+        (
+          player: player,
+          team: match.teamA.name,
+          score: player.runs + player.wickets * 25,
+        ),
+      for (final player in match.teamB.players)
+        (
+          player: player,
+          team: match.teamB.name,
+          score: player.runs + player.wickets * 25,
+        ),
+    ]..sort((a, b) => b.score.compareTo(a.score));
+    final top = ranked.where((entry) => entry.score > 0).take(3).toList();
+    if (top.isEmpty) return pw.SizedBox.shrink();
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: PdfColors.amber50,
+        border: pw.Border.all(color: PdfColors.amber700),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            'TOP 3 PERFORMERS',
+            style: pw.TextStyle(
+              fontSize: 14,
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.amber900,
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          for (var index = 0; index < top.length; index++)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 4),
+              child: pw.Text(
+                '${index + 1}. ${top[index].player.name} '
+                '(${top[index].team}) - '
+                '${top[index].player.runs} runs, '
+                '${top[index].player.wickets} wickets, '
+                '${top[index].player.fours} fours, '
+                '${top[index].player.sixes} sixes',
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   pw.Widget _currentPlay(MatchModel match) {
     String name(TeamModel team, String id) =>
         team.players.firstWhere((player) => player.id == id).name;
@@ -261,4 +325,16 @@ class PdfScorecardService {
   }
 
   String _overs(int balls) => '${balls ~/ 6}.${balls % 6}';
+
+  static const _fontPaths = [
+    'assets/fonts/NotoSansDevanagari-Regular.ttf',
+    'assets/fonts/NotoSansTamil-Regular.ttf',
+    'assets/fonts/NotoSansTelugu-Regular.ttf',
+    'assets/fonts/NotoSansMalayalam-Regular.ttf',
+    'assets/fonts/NotoSansKannada-Regular.ttf',
+    'assets/fonts/NotoSansGurmukhi-Regular.ttf',
+    'assets/fonts/NotoSansBengali-Regular.ttf',
+    'assets/fonts/NotoSansOriya-Regular.ttf',
+    'assets/fonts/NotoSansGujarati-Regular.ttf',
+  ];
 }

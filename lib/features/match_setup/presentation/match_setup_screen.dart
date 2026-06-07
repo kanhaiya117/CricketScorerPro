@@ -102,10 +102,14 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   Future<void> _selectBatters() async {
     final selected = await showDialog<List<int>>(
       context: context,
-      builder: (context) => _BatterSelectionDialog(
-        players: _battingPlayers,
-        strikerIndex: _strikerIndex,
-        nonStrikerIndex: _nonStrikerIndex,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: _BatterSelectionDialog(
+          players: _battingPlayers,
+          strikerIndex: _strikerIndex,
+          nonStrikerIndex: _nonStrikerIndex,
+        ),
       ),
     );
     if (selected != null && mounted) {
@@ -119,11 +123,15 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   Future<void> _selectBowler() async {
     final selected = await showDialog<int>(
       context: context,
-      builder: (context) => _PlayerSelectionDialog(
-        title: 'Select Opening Bowler',
-        players: _bowlingPlayers,
-        selectedIndex: _bowlerIndex,
-        icon: Icons.sports_baseball,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: _PlayerSelectionDialog(
+          title: 'Select Opening Bowler',
+          players: _bowlingPlayers,
+          selectedIndex: _bowlerIndex,
+          icon: Icons.sports_baseball,
+        ),
       ),
     );
     if (selected != null && mounted) {
@@ -211,14 +219,18 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                   icon: Icon(
                     _step == 4 ? Icons.sports_cricket : Icons.arrow_forward,
                   ),
-                  label: Text(_step == 4 ? 'Start Match' : 'Continue'),
+                  label: Text(
+                    _step == 4
+                        ? context.tr('startMatch')
+                        : context.tr('continue'),
+                  ),
                 ),
               ),
               if (_step > 0) ...[
                 const SizedBox(width: 8),
                 TextButton(
                   onPressed: details.onStepCancel,
-                  child: const Text('Back'),
+                  child: Text(context.tr('back')),
                 ),
               ],
             ],
@@ -226,9 +238,9 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
         ),
         steps: [
           Step(
-            title: const Text('Team A Setup'),
+            title: Text(context.tr('teamASetup')),
             subtitle: Text(
-              _teamAConfigured ? _teamA.text : 'Add team and players',
+              _teamAConfigured ? _teamA.text : context.tr('addTeamPlayers'),
             ),
             isActive: _step >= 0,
             state: _teamAConfigured ? StepState.complete : StepState.indexed,
@@ -241,9 +253,9 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             ),
           ),
           Step(
-            title: const Text('Team B Setup'),
+            title: Text(context.tr('teamBSetup')),
             subtitle: Text(
-              _teamBConfigured ? _teamB.text : 'Add team and players',
+              _teamBConfigured ? _teamB.text : context.tr('addTeamPlayers'),
             ),
             isActive: _step >= 1,
             state: _teamBConfigured ? StepState.complete : StepState.indexed,
@@ -256,7 +268,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             ),
           ),
           Step(
-            title: const Text('Batting First'),
+            title: Text(context.tr('battingFirst')),
             isActive: _step >= 2,
             content: RadioGroup<String>(
               groupValue: _batting,
@@ -283,7 +295,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             ),
           ),
           Step(
-            title: const Text('Match Overs'),
+            title: Text(context.tr('matchOvers')),
             isActive: _step >= 3,
             content: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -309,10 +321,10 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                 TextField(
                   controller: _customOvers,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Custom overs',
+                  decoration: InputDecoration(
+                    labelText: context.tr('customOvers'),
                     hintText: 'Enter overs',
-                    prefixIcon: Icon(Icons.edit_note),
+                    prefixIcon: const Icon(Icons.edit_note),
                   ),
                   onChanged: (value) {
                     final parsed = int.tryParse(value);
@@ -326,35 +338,35 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             ),
           ),
           Step(
-            title: const Text('Opening Players'),
-            subtitle: const Text('Choose batters and bowler'),
+            title: Text(context.tr('openingPlayers')),
+            subtitle: Text(context.tr('chooseBattersBowler')),
             isActive: _step >= 4,
             content: Column(
               children: [
                 _OpeningSelectionCard(
-                  title: 'Opening Batters',
+                  title: context.tr('openingBatters'),
                   subtitle: _strikerIndex == null
-                      ? 'Select striker and non-striker'
+                      ? context.tr('selectStrikerPartner')
                       : '${_battingPlayers[_strikerIndex!].text}  •  '
                             '${_battingPlayers[_nonStrikerIndex!].text}',
                   icon: Icons.sports_cricket,
                   complete: _strikerIndex != null,
                   buttonLabel: _strikerIndex == null
-                      ? 'Add Batters'
-                      : 'Edit Batters',
+                      ? context.tr('addBatters')
+                      : context.tr('editBatters'),
                   onPressed: _selectBatters,
                 ),
                 const SizedBox(height: 12),
                 _OpeningSelectionCard(
-                  title: 'Opening Bowler',
+                  title: context.tr('openingBowler'),
                   subtitle: _bowlerIndex == null
-                      ? 'Select the current bowler'
+                      ? context.tr('selectCurrentBowler')
                       : _bowlingPlayers[_bowlerIndex!].text,
                   icon: Icons.sports_baseball,
                   complete: _bowlerIndex != null,
                   buttonLabel: _bowlerIndex == null
-                      ? 'Add Bowler'
-                      : 'Edit Bowler',
+                      ? context.tr('addBowler')
+                      : context.tr('editBowler'),
                   onPressed: _selectBowler,
                 ),
               ],
@@ -415,7 +427,11 @@ class _TeamRosterCard extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: onPressed,
               icon: Icon(configured ? Icons.edit : Icons.group_add),
-              label: Text(configured ? 'Edit Players' : 'Add Players'),
+              label: Text(
+                configured
+                    ? context.tr('editPlayers')
+                    : context.tr('addPlayers'),
+              ),
             ),
           ),
         ],
@@ -489,77 +505,110 @@ class _BatterSelectionDialog extends StatefulWidget {
 class _BatterSelectionDialogState extends State<_BatterSelectionDialog> {
   int? striker;
   int? nonStriker;
+  late String selectedRole;
 
   @override
   void initState() {
     super.initState();
     striker = widget.strikerIndex;
     nonStriker = widget.nonStrikerIndex;
+    selectedRole = striker == null ? 'striker' : 'nonStriker';
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Select Opening Batters'),
+    title: Text(context.tr('openingBatters')),
     content: SizedBox(
       width: double.maxFinite,
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: widget.players.length,
-        itemBuilder: (context, index) {
-          final isStriker = striker == index;
-          final isNonStriker = nonStriker == index;
-          return Card(
-            color: isStriker || isNonStriker
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: ListTile(
-              leading: CircleAvatar(child: Text('${index + 1}')),
-              title: Text(widget.players[index].text),
-              subtitle: Text(
-                isStriker
-                    ? 'Striker'
-                    : isNonStriker
-                    ? 'Non-striker'
-                    : 'Available',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'striker',
+                icon: const Icon(Icons.sports_cricket),
+                label: Text(context.tr('striker')),
               ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (role) => setState(() {
-                  if (role == 'striker') {
-                    striker = index;
-                    if (nonStriker == index) nonStriker = null;
-                  } else {
-                    nonStriker = index;
-                    if (striker == index) striker = null;
-                  }
-                }),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'striker',
-                    enabled: !isNonStriker,
-                    child: const Text('Set as striker'),
-                  ),
-                  PopupMenuItem(
-                    value: 'nonStriker',
-                    enabled: !isStriker,
-                    child: const Text('Set as non-striker'),
-                  ),
-                ],
+              ButtonSegment(
+                value: 'nonStriker',
+                icon: const Icon(Icons.people_outline),
+                label: Text(context.tr('nonStriker')),
               ),
+            ],
+            selected: {selectedRole},
+            onSelectionChanged: (selection) =>
+                setState(() => selectedRole = selection.first),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            selectedRole == 'striker'
+                ? context.tr('selectStriker')
+                : context.tr('selectNonStriker'),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(height: 6),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.players.length,
+              itemBuilder: (context, index) {
+                final isStriker = striker == index;
+                final isNonStriker = nonStriker == index;
+                final blocked = selectedRole == 'striker'
+                    ? isNonStriker
+                    : isStriker;
+                return Card(
+                  color: isStriker || isNonStriker
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : null,
+                  child: ListTile(
+                    enabled: !blocked,
+                    leading: CircleAvatar(
+                      child: isStriker
+                          ? const Icon(Icons.sports_cricket)
+                          : isNonStriker
+                          ? const Icon(Icons.people_outline)
+                          : Text('${index + 1}'),
+                    ),
+                    title: Text(widget.players[index].text),
+                    subtitle: Text(
+                      isStriker
+                          ? context.tr('striker')
+                          : isNonStriker
+                          ? context.tr('nonStriker')
+                          : blocked
+                          ? context.tr('unavailable')
+                          : context.tr('available'),
+                    ),
+                    trailing: isStriker || isNonStriker
+                        ? const Icon(Icons.check_circle)
+                        : const Icon(Icons.touch_app_outlined),
+                    onTap: blocked
+                        ? null
+                        : () => setState(() {
+                            if (selectedRole == 'striker') {
+                              striker = index;
+                              selectedRole = 'nonStriker';
+                            } else {
+                              nonStriker = index;
+                            }
+                          }),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     ),
     actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
+      FilledButton.icon(
         onPressed: striker != null && nonStriker != null
             ? () => Navigator.pop(context, [striker!, nonStriker!])
             : null,
-        child: const Text('Confirm'),
+        icon: const Icon(Icons.check),
+        label: Text(context.tr('confirm')),
       ),
     ],
   );
@@ -703,7 +752,7 @@ class _RosterDialogState extends State<_RosterDialog> {
           onPressed: () => Navigator.pop(context, false),
           icon: const Icon(Icons.close),
         ),
-        title: const Text('Team Playing XI'),
+        title: Text(context.tr('players11')),
         actions: [
           TextButton(
             onPressed: _isValid
@@ -712,7 +761,7 @@ class _RosterDialogState extends State<_RosterDialog> {
                     Navigator.pop(context, true);
                   }
                 : null,
-            child: const Text('SAVE'),
+            child: Text(context.tr('save').toUpperCase()),
           ),
         ],
       ),
@@ -724,9 +773,9 @@ class _RosterDialogState extends State<_RosterDialog> {
               controller: widget.team,
               textCapitalization: TextCapitalization.words,
               onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Team name',
-                prefixIcon: Icon(Icons.shield_outlined),
+              decoration: InputDecoration(
+                labelText: context.tr('teamName'),
+                prefixIcon: const Icon(Icons.shield_outlined),
               ),
             ),
           ),
@@ -735,7 +784,7 @@ class _RosterDialogState extends State<_RosterDialog> {
             child: Row(
               children: [
                 Text(
-                  '11 Players',
+                  context.tr('players11'),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -743,7 +792,7 @@ class _RosterDialogState extends State<_RosterDialog> {
                 const Spacer(),
                 const Icon(Icons.mic_none, size: 18),
                 const SizedBox(width: 4),
-                const Text('Tap mic to speak'),
+                Text(context.tr('tapMic')),
               ],
             ),
           ),
@@ -775,9 +824,9 @@ class _RosterDialogState extends State<_RosterDialog> {
                                   onChanged: (_) => setState(() {}),
                                   onSubmitted: (_) =>
                                       setState(() => _editingIndex = null),
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     isDense: true,
-                                    hintText: 'Player name',
+                                    hintText: context.tr('playerName'),
                                   ),
                                 )
                               : Text(

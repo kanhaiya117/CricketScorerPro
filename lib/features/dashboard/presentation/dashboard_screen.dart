@@ -58,11 +58,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final matches = ref.watch(historyProvider);
+    final currentMatch = ref.watch(currentMatchProvider);
     final sync = ref.watch(syncProvider);
     final locale = ref.watch(localeProvider);
-    final unfinished = matches
-        .where((match) => match.status != MatchStatus.completed)
-        .firstOrNull;
+    final activeMatch =
+        currentMatch != null &&
+            currentMatch.status != MatchStatus.completed &&
+            matches.any((match) => match.id == currentMatch.id)
+        ? currentMatch
+        : null;
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -136,38 +140,34 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  if (unfinished != null) ...[
-                    _ResumeCard(match: unfinished),
+                  if (activeMatch != null) ...[
+                    _ResumeCard(match: activeMatch),
                     const SizedBox(height: 16),
-                  ],
-                  FilledButton.icon(
-                    onPressed: () => context.push('/setup'),
-                    icon: const Icon(Icons.add_circle_outline),
-                    label: Text(context.tr('startMatch')),
-                  ),
-                  const SizedBox(height: 10),
-                  OutlinedButton.icon(
-                    onPressed: matches.isEmpty
-                        ? null
-                        : () => context.push('/history'),
-                    icon: const Icon(Icons.history),
-                    label: Text(context.tr('matchHistory')),
-                  ),
-                  const SizedBox(height: 22),
-                  Text(
-                    context.tr('watchLive'),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                    OutlinedButton.icon(
+                      onPressed: () => context.push('/history'),
+                      icon: const Icon(Icons.history),
+                      label: Text(context.tr('matchHistory')),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final narrow = constraints.maxWidth < 400;
-                          final input = TextField(
+                  ] else ...[
+                    _ModeCard(
+                      icon: Icons.edit_note,
+                      title: context.tr('startMatch'),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => context.push('/setup'),
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: Text(context.tr('startMatch')),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _ModeCard(
+                      icon: Icons.live_tv,
+                      title: context.tr('watchLive'),
+                      child: Column(
+                        children: [
+                          TextField(
                             controller: _codeController,
                             textCapitalization: TextCapitalization.characters,
                             maxLength: 6,
@@ -177,41 +177,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                               labelText: context.tr('matchCode'),
                               prefixIcon: const Icon(Icons.tag),
                             ),
-                          );
-                          final button = FilledButton.icon(
-                            onPressed: _finding ? null : _findMatch,
-                            icon: _finding
-                                ? const SizedBox.square(
-                                    dimension: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Icon(Icons.search),
-                            label: Text(context.tr('find')),
-                          );
-                          return narrow
-                              ? Column(
-                                  children: [
-                                    input,
-                                    const SizedBox(height: 10),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: button,
-                                    ),
-                                  ],
-                                )
-                              : Row(
-                                  children: [
-                                    Expanded(child: input),
-                                    const SizedBox(width: 10),
-                                    button,
-                                  ],
-                                );
-                        },
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: _finding ? null : _findMatch,
+                              icon: _finding
+                                  ? const SizedBox.square(
+                                      dimension: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.search),
+                              label: Text(context.tr('find')),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                    if (matches.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () => context.push('/history'),
+                        icon: const Icon(Icons.history),
+                        label: Text(context.tr('matchHistory')),
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 22),
                   Text(
                     context.tr('cloudBackup'),
@@ -314,15 +308,56 @@ class _ResumeCard extends ConsumerWidget {
             ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: () async {
-              await ref.read(currentMatchProvider.notifier).load(match.id);
-              if (context.mounted) context.push('/live');
-            },
-            icon: const Icon(Icons.play_arrow),
-            label: Text(context.tr('continueMatch')),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                await ref.read(currentMatchProvider.notifier).load(match.id);
+                if (context.mounted) context.push('/live');
+              },
+              icon: const Icon(Icons.play_arrow),
+              label: Text(context.tr('continueMatch')),
+            ),
           ),
         ],
+      ),
+    ),
+  );
+}
+
+class _ModeCard extends StatelessWidget {
+  const _ModeCard({
+    required this.icon,
+    required this.title,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 190),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 44, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
       ),
     ),
   );
