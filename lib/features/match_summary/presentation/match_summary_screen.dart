@@ -45,10 +45,7 @@ class MatchSummaryScreen extends ConsumerWidget {
           IconButton(
             tooltip: context.tr('scorecard'),
             onPressed: () async {
-              final file = await const PdfScorecardService().generate(
-                match,
-                languageCode: Localizations.localeOf(context).languageCode,
-              );
+              final file = await const PdfScorecardService().generate(match);
               await SharePlus.instance.share(
                 ShareParams(
                   files: [XFile(file.path, mimeType: 'application/pdf')],

@@ -58,11 +58,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final matches = ref.watch(historyProvider);
+    final currentMatch = ref.watch(currentMatchProvider);
     final sync = ref.watch(syncProvider);
     final locale = ref.watch(localeProvider);
-    final unfinished = matches
-        .where((match) => match.status != MatchStatus.completed)
-        .firstOrNull;
+    final activeMatch =
+        currentMatch != null &&
+            currentMatch.status != MatchStatus.completed &&
+            matches.any((match) => match.id == currentMatch.id)
+        ? currentMatch
+        : null;
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
@@ -136,8 +140,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  if (unfinished != null) ...[
-                    _ResumeCard(match: unfinished),
+                  if (activeMatch != null) ...[
+                    _ResumeCard(match: activeMatch),
                     const SizedBox(height: 16),
                     OutlinedButton.icon(
                       onPressed: () => context.push('/history'),
@@ -148,10 +152,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     _ModeCard(
                       icon: Icons.edit_note,
                       title: context.tr('startMatch'),
-                      child: FilledButton.icon(
-                        onPressed: () => context.push('/setup'),
-                        icon: const Icon(Icons.add_circle_outline),
-                        label: Text(context.tr('startMatch')),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () => context.push('/setup'),
+                          icon: const Icon(Icons.add_circle_outline),
+                          label: Text(context.tr('startMatch')),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -301,13 +308,16 @@ class _ResumeCard extends ConsumerWidget {
             ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: () async {
-              await ref.read(currentMatchProvider.notifier).load(match.id);
-              if (context.mounted) context.push('/live');
-            },
-            icon: const Icon(Icons.play_arrow),
-            label: Text(context.tr('continueMatch')),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () async {
+                await ref.read(currentMatchProvider.notifier).load(match.id);
+                if (context.mounted) context.push('/live');
+              },
+              icon: const Icon(Icons.play_arrow),
+              label: Text(context.tr('continueMatch')),
+            ),
           ),
         ],
       ),
@@ -330,20 +340,24 @@ class _ModeCard extends StatelessWidget {
   Widget build(BuildContext context) => Card(
     child: Padding(
       padding: const EdgeInsets.all(18),
-      child: Column(
-        children: [
-          Icon(icon, size: 44, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          child,
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 190),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 44, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
       ),
     ),
   );

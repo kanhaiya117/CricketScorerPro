@@ -505,12 +505,14 @@ class _BatterSelectionDialog extends StatefulWidget {
 class _BatterSelectionDialogState extends State<_BatterSelectionDialog> {
   int? striker;
   int? nonStriker;
+  late String selectedRole;
 
   @override
   void initState() {
     super.initState();
     striker = widget.strikerIndex;
     nonStriker = widget.nonStrikerIndex;
+    selectedRole = striker == null ? 'striker' : 'nonStriker';
   }
 
   @override
@@ -518,52 +520,86 @@ class _BatterSelectionDialogState extends State<_BatterSelectionDialog> {
     title: Text(context.tr('openingBatters')),
     content: SizedBox(
       width: double.maxFinite,
-      child: ListView.builder(
-        shrinkWrap: true,
-        itemCount: widget.players.length,
-        itemBuilder: (context, index) {
-          final isStriker = striker == index;
-          final isNonStriker = nonStriker == index;
-          return Card(
-            color: isStriker || isNonStriker
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            child: ListTile(
-              leading: CircleAvatar(child: Text('${index + 1}')),
-              title: Text(widget.players[index].text),
-              subtitle: Text(
-                isStriker
-                    ? context.tr('striker')
-                    : isNonStriker
-                    ? context.tr('nonStriker')
-                    : context.tr('available'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'striker',
+                icon: const Icon(Icons.sports_cricket),
+                label: Text(context.tr('striker')),
               ),
-              trailing: PopupMenuButton<String>(
-                onSelected: (role) => setState(() {
-                  if (role == 'striker') {
-                    striker = index;
-                    if (nonStriker == index) nonStriker = null;
-                  } else {
-                    nonStriker = index;
-                    if (striker == index) striker = null;
-                  }
-                }),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'striker',
-                    enabled: !isNonStriker,
-                    child: Text(context.tr('striker')),
-                  ),
-                  PopupMenuItem(
-                    value: 'nonStriker',
-                    enabled: !isStriker,
-                    child: Text(context.tr('nonStriker')),
-                  ),
-                ],
+              ButtonSegment(
+                value: 'nonStriker',
+                icon: const Icon(Icons.people_outline),
+                label: Text(context.tr('nonStriker')),
               ),
+            ],
+            selected: {selectedRole},
+            onSelectionChanged: (selection) =>
+                setState(() => selectedRole = selection.first),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            selectedRole == 'striker'
+                ? context.tr('selectStriker')
+                : context.tr('selectNonStriker'),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          ),
+          const SizedBox(height: 6),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.players.length,
+              itemBuilder: (context, index) {
+                final isStriker = striker == index;
+                final isNonStriker = nonStriker == index;
+                final blocked = selectedRole == 'striker'
+                    ? isNonStriker
+                    : isStriker;
+                return Card(
+                  color: isStriker || isNonStriker
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : null,
+                  child: ListTile(
+                    enabled: !blocked,
+                    leading: CircleAvatar(
+                      child: isStriker
+                          ? const Icon(Icons.sports_cricket)
+                          : isNonStriker
+                          ? const Icon(Icons.people_outline)
+                          : Text('${index + 1}'),
+                    ),
+                    title: Text(widget.players[index].text),
+                    subtitle: Text(
+                      isStriker
+                          ? context.tr('striker')
+                          : isNonStriker
+                          ? context.tr('nonStriker')
+                          : blocked
+                          ? context.tr('unavailable')
+                          : context.tr('available'),
+                    ),
+                    trailing: isStriker || isNonStriker
+                        ? const Icon(Icons.check_circle)
+                        : const Icon(Icons.touch_app_outlined),
+                    onTap: blocked
+                        ? null
+                        : () => setState(() {
+                            if (selectedRole == 'striker') {
+                              striker = index;
+                              selectedRole = 'nonStriker';
+                            } else {
+                              nonStriker = index;
+                            }
+                          }),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     ),
     actions: [

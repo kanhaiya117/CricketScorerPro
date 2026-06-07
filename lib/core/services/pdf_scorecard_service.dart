@@ -1,8 +1,6 @@
 import 'dart:io';
 
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
-import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
@@ -11,9 +9,10 @@ import 'package:pdf/widgets.dart' as pw;
 class PdfScorecardService {
   const PdfScorecardService();
 
-  Future<File> generate(MatchModel match, {String languageCode = 'en'}) async {
-    final localizations = AppLocalizations(Locale(languageCode));
-    final font = pw.Font.ttf(await rootBundle.load(_fontPath(languageCode)));
+  Future<File> generate(MatchModel match) async {
+    final fallbackFonts = await Future.wait(
+      _fontPaths.map((path) async => pw.Font.ttf(await rootBundle.load(path))),
+    );
     final document = pw.Document(
       title: '${match.teamA.name} vs ${match.teamB.name}',
       author: 'Cric Score Pro - KK Bharat',
@@ -34,7 +33,11 @@ class PdfScorecardService {
 
     document.addPage(
       pw.MultiPage(
-        theme: pw.ThemeData.withFont(base: font, bold: font),
+        theme: pw.ThemeData.withFont(
+          base: pw.Font.helvetica(),
+          bold: pw.Font.helveticaBold(),
+          fontFallback: fallbackFonts,
+        ),
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(28),
         header: (context) => pw.Container(
@@ -92,7 +95,7 @@ class PdfScorecardService {
                 ),
               ),
             ),
-          _topPerformers(match, localizations),
+          _topPerformers(match),
           pw.SizedBox(height: 14),
           _innings('1st Innings', first, second, firstBalls),
           if (match.innings == 2) ...[
@@ -198,7 +201,7 @@ class PdfScorecardService {
     ],
   );
 
-  pw.Widget _topPerformers(MatchModel match, AppLocalizations localizations) {
+  pw.Widget _topPerformers(MatchModel match) {
     final ranked = <({PlayerModel player, String team, int score})>[
       for (final player in match.teamA.players)
         (
@@ -226,7 +229,7 @@ class PdfScorecardService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            localizations.text('topPerformers').toUpperCase(),
+            'TOP 3 PERFORMERS',
             style: pw.TextStyle(
               fontSize: 14,
               fontWeight: pw.FontWeight.bold,
@@ -323,14 +326,15 @@ class PdfScorecardService {
 
   String _overs(int balls) => '${balls ~/ 6}.${balls % 6}';
 
-  String _fontPath(String languageCode) => switch (languageCode) {
-    'ta' => 'assets/fonts/NotoSansTamil-Regular.ttf',
-    'te' => 'assets/fonts/NotoSansTelugu-Regular.ttf',
-    'ml' => 'assets/fonts/NotoSansMalayalam-Regular.ttf',
-    'kn' => 'assets/fonts/NotoSansKannada-Regular.ttf',
-    'pa' => 'assets/fonts/NotoSansGurmukhi-Regular.ttf',
-    'bn' || 'as' => 'assets/fonts/NotoSansBengali-Regular.ttf',
-    'or' => 'assets/fonts/NotoSansOriya-Regular.ttf',
-    _ => 'assets/fonts/NotoSansDevanagari-Regular.ttf',
-  };
+  static const _fontPaths = [
+    'assets/fonts/NotoSansDevanagari-Regular.ttf',
+    'assets/fonts/NotoSansTamil-Regular.ttf',
+    'assets/fonts/NotoSansTelugu-Regular.ttf',
+    'assets/fonts/NotoSansMalayalam-Regular.ttf',
+    'assets/fonts/NotoSansKannada-Regular.ttf',
+    'assets/fonts/NotoSansGurmukhi-Regular.ttf',
+    'assets/fonts/NotoSansBengali-Regular.ttf',
+    'assets/fonts/NotoSansOriya-Regular.ttf',
+    'assets/fonts/NotoSansGujarati-Regular.ttf',
+  ];
 }
