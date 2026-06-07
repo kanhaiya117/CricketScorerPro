@@ -6,10 +6,12 @@ import 'package:cricket_scorer_pro/core/services/firestore_match_service.dart';
 import 'package:cricket_scorer_pro/core/storage/hive_match_storage.dart';
 import 'package:cricket_scorer_pro/core/theme/app_theme.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
+import 'package:cricket_scorer_pro/features/language/presentation/language_selection_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 
 Future<void> main() async {
@@ -63,12 +65,53 @@ class CricketScorerApp extends ConsumerWidget {
       GlobalWidgetsLocalizations.delegate,
       GlobalCupertinoLocalizations.delegate,
     ],
-    builder: (context, child) => Column(
-      children: [
-        Expanded(child: child ?? const SizedBox.shrink()),
-        const AppFooter(),
-      ],
+    builder: (context, child) => _FirstLaunchGate(
+      child: Column(
+        children: [
+          Expanded(child: child ?? const SizedBox.shrink()),
+          const AppFooter(),
+        ],
+      ),
     ),
     routerConfig: appRouter,
   );
+}
+
+class _FirstLaunchGate extends StatefulWidget {
+  const _FirstLaunchGate({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FirstLaunchGate> createState() => _FirstLaunchGateState();
+}
+
+class _FirstLaunchGateState extends State<_FirstLaunchGate> {
+  bool? chosen;
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((preferences) {
+      if (mounted) {
+        setState(() => chosen = preferences.containsKey('app_language'));
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (chosen == null) {
+      return const ColoredBox(
+        color: Colors.white,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (!chosen!) {
+      return LanguageSelectionScreen(
+        onComplete: () => setState(() => chosen = true),
+      );
+    }
+    return widget.child;
+  }
 }

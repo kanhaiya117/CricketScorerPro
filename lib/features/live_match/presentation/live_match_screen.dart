@@ -1,11 +1,15 @@
+import 'dart:async';
+
 import 'package:cricket_scorer_pro/features/live_match/engine/match_insights.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:vibration/vibration.dart';
 
 class LiveMatchScreen extends ConsumerWidget {
   const LiveMatchScreen({super.key});
@@ -46,7 +50,7 @@ class LiveMatchScreen extends ConsumerWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Scorecard',
+              tooltip: context.tr('scorecard'),
               onPressed: () => context.push('/summary'),
               icon: const Icon(Icons.scoreboard_outlined),
             ),
@@ -66,14 +70,17 @@ class LiveMatchScreen extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _ChaseStat(label: 'Target', value: '${match.target}'),
                         _ChaseStat(
-                          label: 'Need',
+                          label: context.tr('target'),
+                          value: '${match.target}',
+                        ),
+                        _ChaseStat(
+                          label: context.tr('need'),
                           value:
                               '${match.runsRequired} from ${match.ballsRemaining}',
                         ),
                         _ChaseStat(
-                          label: 'RRR',
+                          label: context.tr('rrr'),
                           value: match.requiredRunRate.toStringAsFixed(2),
                         ),
                       ],
@@ -130,7 +137,7 @@ class LiveMatchScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Last 6 balls',
+                context.tr('last6'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 8),
@@ -176,7 +183,7 @@ class LiveMatchScreen extends ConsumerWidget {
                       ),
                       onPressed: () => _wicketSheet(context, ref, match),
                       icon: const Icon(Icons.close),
-                      label: const Text('Wicket'),
+                      label: Text(context.tr('wicket')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -187,7 +194,7 @@ class LiveMatchScreen extends ConsumerWidget {
                       ),
                       onPressed: () => _extraSheet(context, ref, match),
                       icon: const Icon(Icons.add),
-                      label: const Text('Extra'),
+                      label: Text(context.tr('extra')),
                     ),
                   ),
                 ],
@@ -201,17 +208,17 @@ class LiveMatchScreen extends ConsumerWidget {
                         ? null
                         : () => ref.read(currentMatchProvider.notifier).undo(),
                     icon: const Icon(Icons.undo),
-                    label: const Text('Undo'),
+                    label: Text(context.tr('undo')),
                   ),
                   TextButton.icon(
                     onPressed: () => _bowlerSheet(context, ref, match),
                     icon: const Icon(Icons.swap_horiz),
-                    label: const Text('Bowler'),
+                    label: Text(context.tr('changeBowler')),
                   ),
                   TextButton.icon(
                     onPressed: () => _endMatch(context, ref),
                     icon: const Icon(Icons.stop_circle_outlined),
-                    label: const Text('End'),
+                    label: Text(context.tr('end')),
                   ),
                 ],
               ),
@@ -232,10 +239,21 @@ class LiveMatchScreen extends ConsumerWidget {
     required int runs,
     BallType type = BallType.normal,
   }) async {
+    await _vibrate(runs == 4 || runs == 6 ? 90 : 35);
     final updated = await ref
         .read(currentMatchProvider.notifier)
         .score(runs: runs, ballType: type);
     if (!context.mounted || updated == null) return;
+    if (runs == 4 || runs == 6) {
+      unawaited(
+        _showCelebration(
+          context,
+          label: runs == 4 ? 'FOUR!' : 'SIX!',
+          icon: runs == 4 ? Icons.looks_4 : Icons.looks_6,
+          color: runs == 4 ? Colors.blue : Colors.purple,
+        ),
+      );
+    }
     if (updated.status == MatchStatus.completed) {
       context.go('/summary');
     } else if (updated.status == MatchStatus.live &&
@@ -258,7 +276,10 @@ class LiveMatchScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Select extra', style: TextStyle(fontSize: 20)),
+            Text(
+              context.tr('selectExtra'),
+              style: const TextStyle(fontSize: 20),
+            ),
             for (final value in [
               BallType.wide,
               BallType.noBall,
@@ -294,10 +315,7 @@ class LiveMatchScreen extends ConsumerWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'How was the batter out?',
-              style: TextStyle(fontSize: 20),
-            ),
+            Text(context.tr('howOut'), style: const TextStyle(fontSize: 20)),
             for (final value in [
               WicketType.bowled,
               WicketType.caught,
@@ -380,7 +398,7 @@ class LiveMatchScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const ListTile(title: Text('Next batter')),
+                  ListTile(title: Text(context.tr('nextBatter'))),
                   for (final player in available)
                     ListTile(
                       title: Text(player.name),
@@ -400,9 +418,92 @@ class LiveMatchScreen extends ConsumerWidget {
           nextBatsmanId: next,
           fielderId: fielderId,
         );
+    await _vibrate(180);
+    if (context.mounted && updated != null) {
+      unawaited(
+        _showCelebration(
+          context,
+          label: 'WICKET!',
+          icon: Icons.sports_cricket,
+          color: Colors.red,
+        ),
+      );
+    }
     if (context.mounted && updated?.status == MatchStatus.completed) {
       context.go('/summary');
     }
+  }
+
+  Future<void> _vibrate(int duration) async {
+    if (await Vibration.hasVibrator()) {
+      await Vibration.vibrate(duration: duration);
+    } else {
+      await HapticFeedback.mediumImpact();
+    }
+  }
+
+  Future<void> _showCelebration(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) async {
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 950)).then((_) {
+        if (context.mounted &&
+            Navigator.of(context, rootNavigator: true).canPop()) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }),
+    );
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: Colors.black45,
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (_, _, _) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            width: 230,
+            padding: const EdgeInsets.all(26),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(28),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black38,
+                  blurRadius: 24,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: Colors.white, size: 76),
+                const SizedBox(height: 10),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      transitionBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: CurvedAnimation(parent: animation, curve: Curves.elasticOut),
+          child: child,
+        ),
+      ),
+    );
   }
 
   Future<void> _bowlerSheet(
@@ -423,10 +524,12 @@ class LiveMatchScreen extends ConsumerWidget {
             child: Column(
               children: [
                 ListTile(
-                  title: Text(overComplete ? 'Over Complete' : 'Change Bowler'),
-                  subtitle: Text(
-                    'Select from all ${match.bowlingTeam.players.length} players',
+                  title: Text(
+                    overComplete
+                        ? context.tr('overComplete')
+                        : context.tr('changeBowler'),
                   ),
+                  subtitle: Text(context.tr('selectNewBowler')),
                 ),
                 const Divider(height: 1),
                 Expanded(
@@ -456,7 +559,7 @@ class LiveMatchScreen extends ConsumerWidget {
                           title: Text(player.name),
                           subtitle: Text(
                             unavailable
-                                ? 'Previous over bowler - unavailable'
+                                ? context.tr('unavailable')
                                 : '${player.overs} ov  •  '
                                       '${player.runsConceded} runs  •  '
                                       '${player.wickets} wickets  •  '
@@ -488,16 +591,16 @@ class LiveMatchScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('End match?'),
+        title: Text(context.tr('endMatch')),
         content: const Text('The current score will be saved as final.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('End Match'),
+            child: Text(context.tr('endMatch')),
           ),
         ],
       ),
@@ -630,55 +733,60 @@ class _InningsBreakScreen extends ConsumerWidget {
     context: context,
     showDragHandle: true,
     isScrollControlled: true,
-    builder: (context) => SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * .72,
-        ),
-        child: Column(
-          children: [
-            ListTile(
-              leading: Icon(icon),
-              title: Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+    isDismissible: false,
+    enableDrag: false,
+    builder: (context) => PopScope(
+      canPop: false,
+      child: SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * .72,
+          ),
+          child: Column(
+            children: [
+              ListTile(
+                leading: Icon(icon),
+                title: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: ListView(
-                children: [
-                  for (final player in team.players)
-                    Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
-                      ),
-                      child: ListTile(
-                        enabled: !player.isOut && player.id != excludedId,
-                        leading: CircleAvatar(child: Icon(icon)),
-                        title: Text(player.name),
-                        subtitle: Text(
-                          player.isOut
-                              ? 'Out - unavailable'
-                              : player.id == excludedId
-                              ? 'Already selected'
-                              : 'Available',
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final player in team.players)
+                      Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
                         ),
-                        trailing: player.isOut || player.id == excludedId
-                            ? const Icon(Icons.block)
-                            : const Icon(Icons.check_circle_outline),
-                        onTap: player.isOut || player.id == excludedId
-                            ? null
-                            : () => Navigator.pop(context, player.id),
+                        child: ListTile(
+                          enabled: !player.isOut && player.id != excludedId,
+                          leading: CircleAvatar(child: Icon(icon)),
+                          title: Text(player.name),
+                          subtitle: Text(
+                            player.isOut
+                                ? 'Out - unavailable'
+                                : player.id == excludedId
+                                ? 'Already selected'
+                                : 'Available',
+                          ),
+                          trailing: player.isOut || player.id == excludedId
+                              ? const Icon(Icons.block)
+                              : const Icon(Icons.check_circle_outline),
+                          onTap: player.isOut || player.id == excludedId
+                              ? null
+                              : () => Navigator.pop(context, player.id),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),
@@ -720,7 +828,7 @@ class _InningsBreakScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => Scaffold(
-    appBar: AppBar(title: const Text('Innings Break')),
+    appBar: AppBar(title: Text(context.tr('inningsBreak'))),
     body: ResponsiveContent(
       child: Center(
         child: SingleChildScrollView(
@@ -759,7 +867,7 @@ class _InningsBreakScreen extends ConsumerWidget {
                       child: FilledButton.icon(
                         onPressed: () => _start(context, ref),
                         icon: const Icon(Icons.play_arrow),
-                        label: const Text('Set Players & Start Chase'),
+                        label: Text(context.tr('startChase')),
                       ),
                     ),
                   ],

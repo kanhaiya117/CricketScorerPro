@@ -68,6 +68,34 @@ class SpectatorScoreboardScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 10),
                       _CurrentPlay(match: match),
+                      if (match.innings == 2) ...[
+                        const SizedBox(height: 10),
+                        Card(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.secondaryContainer,
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _ChaseValue(
+                                  label: context.tr('target'),
+                                  value: '${match.target}',
+                                ),
+                                _ChaseValue(
+                                  label: context.tr('need'),
+                                  value: '${match.runsRequired}',
+                                ),
+                                _ChaseValue(
+                                  label: context.tr('ballsLeft'),
+                                  value: '${match.ballsRemaining}',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 10),
                       _OverEvents(match: match),
                       if (match.result != null) ...[
@@ -151,11 +179,7 @@ class _OverEvents extends StatelessWidget {
   Widget build(BuildContext context) {
     final inningsBalls = match.ballHistory
         .where((ball) => ball.innings == match.innings)
-        .toList()
-        .reversed
-        .take(24)
-        .toList()
-        .reversed;
+        .toList();
     final overs = <int, List<BallModel>>{};
     for (final ball in inningsBalls) {
       overs.putIfAbsent(ball.overNumber, () => []).add(ball);
@@ -179,7 +203,10 @@ class _OverEvents extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
                   children: [
-                    SizedBox(width: 62, child: Text('Over ${entry.key + 1}')),
+                    SizedBox(
+                      width: 76,
+                      child: Text('${context.tr('overs')} ${entry.key + 1}'),
+                    ),
                     Expanded(
                       child: Wrap(
                         spacing: 6,
@@ -216,4 +243,22 @@ class _OverEvents extends StatelessWidget {
       BallType.normal => '${ball.runs}',
     };
   }
+}
+
+class _ChaseValue extends StatelessWidget {
+  const _ChaseValue({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(label, style: Theme.of(context).textTheme.labelMedium),
+      Text(
+        value,
+        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+      ),
+    ],
+  );
 }

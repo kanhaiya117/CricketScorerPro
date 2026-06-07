@@ -38,13 +38,13 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
             ),
             Expanded(
               child: matches.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.scoreboard_outlined, size: 54),
-                          SizedBox(height: 12),
-                          Text('No matches found'),
+                          const Icon(Icons.scoreboard_outlined, size: 54),
+                          const SizedBox(height: 12),
+                          Text(context.tr('noMatches')),
                         ],
                       ),
                     )
@@ -59,7 +59,7 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
                           confirmDismiss: (_) => showDialog<bool>(
                             context: context,
                             builder: (context) => AlertDialog(
-                              title: const Text('Delete match?'),
+                              title: Text(context.tr('deleteMatch')),
                               content: const Text(
                                 'This removes the match from this device and cloud backup.',
                               ),
@@ -67,11 +67,11 @@ class _MatchHistoryScreenState extends ConsumerState<MatchHistoryScreen> {
                                 TextButton(
                                   onPressed: () =>
                                       Navigator.pop(context, false),
-                                  child: const Text('Cancel'),
+                                  child: Text(context.tr('cancel')),
                                 ),
                                 FilledButton(
                                   onPressed: () => Navigator.pop(context, true),
-                                  child: const Text('Delete'),
+                                  child: Text(context.tr('delete')),
                                 ),
                               ],
                             ),
