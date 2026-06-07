@@ -10,11 +10,12 @@ class MatchEngine {
     WicketType wicketType = WicketType.none,
     String? dismissedBatsmanId,
     String? nextBatsmanId,
+    String? fielderId,
     String? ballId,
     DateTime? timestamp,
   }) {
-    if (match.status == MatchStatus.completed) {
-      throw StateError('Cannot score a completed match.');
+    if (match.status != MatchStatus.live) {
+      throw StateError('The match is not ready for scoring.');
     }
     if (runs < 0) throw ArgumentError.value(runs, 'runs');
 
@@ -25,6 +26,9 @@ class MatchEngine {
     final batRuns = ballType == BallType.normal || ballType == BallType.noBall
         ? runs
         : 0;
+    final dismissedId = wicketType == WicketType.none
+        ? null
+        : dismissedBatsmanId ?? match.strikerId;
     final ball = BallModel(
       id: ballId ?? '${match.id}-${match.ballHistory.length + 1}',
       overNumber: match.legalBalls ~/ 6,
@@ -37,9 +41,11 @@ class MatchEngine {
       bowlerId: match.currentBowlerId,
       isLegalBall: isLegal,
       timestamp: timestamp ?? DateTime.now(),
-      dismissedBatsmanId: wicketType == WicketType.none
-          ? null
-          : dismissedBatsmanId ?? match.strikerId,
+      dismissedBatsmanId: dismissedId,
+      fielderId: fielderId,
+      innings: match.innings,
+      previousStrikerId: match.strikerId,
+      previousNonStrikerId: match.nonStrikerId,
     );
 
     var batting = match.battingTeam;
@@ -52,11 +58,8 @@ class MatchEngine {
     final bowlerIndex = bowlingPlayers.indexWhere(
       (player) => player.id == match.currentBowlerId,
     );
-
     if (strikerIndex < 0 || bowlerIndex < 0) {
-      throw StateError(
-        'Selected striker or bowler is not in the active teams.',
-      );
+      throw StateError('The selected striker or bowler is unavailable.');
     }
 
     battingPlayers[strikerIndex] = battingPlayers[strikerIndex].copyWith(
@@ -80,14 +83,22 @@ class MatchEngine {
     var wickets = match.currentWickets;
     var strikerId = match.strikerId;
     var nonStrikerId = match.nonStrikerId;
-    if (wicketType != WicketType.none) {
-      final dismissedId = dismissedBatsmanId ?? match.strikerId;
+    if (wicketType != WicketType.none && dismissedId != null) {
       final dismissedIndex = battingPlayers.indexWhere(
         (player) => player.id == dismissedId,
       );
       if (dismissedIndex >= 0) {
         battingPlayers[dismissedIndex] = battingPlayers[dismissedIndex]
-            .copyWith(isOut: true, outType: wicketType);
+            .copyWith(
+              isOut: true,
+              outType: wicketType,
+              dismissalText: _dismissalText(
+                wicketType,
+                bowling,
+                match.currentBowlerId,
+                fielderId,
+              ),
+            );
       }
       wickets++;
       if (nextBatsmanId != null) {
@@ -107,39 +118,101 @@ class MatchEngine {
     }
 
     final total = batRuns + extraRuns;
+    final runsTotal = match.currentRuns + total;
     batting = batting.copyWith(
       players: battingPlayers,
-      totalRuns: batting.totalRuns + total,
+      totalRuns: runsTotal,
       wickets: wickets,
       extras: batting.extras + extraRuns,
     );
     bowling = bowling.copyWith(players: bowlingPlayers);
-    final completed =
+    final inningsFinished =
         legalBalls >= match.totalOvers * 6 || wickets >= match.maxWickets;
-    final updated = match.copyWith(
+    final chaseWon =
+        match.innings == 2 &&
+        match.target != null &&
+        runsTotal >= match.target!;
+    final matchFinished = match.innings == 2 && (inningsFinished || chaseWon);
+    final status = matchFinished
+        ? MatchStatus.completed
+        : inningsFinished
+        ? MatchStatus.inningsBreak
+        : MatchStatus.live;
+
+    return match.copyWith(
       teamA: match.teamA.id == batting.id ? batting : bowling,
       teamB: match.teamB.id == batting.id ? batting : bowling,
       strikerId: strikerId,
       nonStrikerId: nonStrikerId,
-      currentRuns: match.currentRuns + total,
+      currentRuns: runsTotal,
       currentWickets: wickets,
       legalBalls: legalBalls,
       ballHistory: [...match.ballHistory, ball],
       updatedAt: timestamp ?? DateTime.now(),
-      status: completed ? MatchStatus.completed : MatchStatus.live,
+      status: status,
       syncStatus: SyncStatus.pending,
-      result: completed
-          ? '${batting.name} finished ${match.currentRuns + total}/$wickets'
-          : match.result,
+      firstInningsBattingTeamId: match.innings == 1 && inningsFinished
+          ? batting.id
+          : match.firstInningsBattingTeamId,
+      firstInningsRuns: match.innings == 1 && inningsFinished
+          ? runsTotal
+          : match.firstInningsRuns,
+      firstInningsWickets: match.innings == 1 && inningsFinished
+          ? wickets
+          : match.firstInningsWickets,
+      firstInningsLegalBalls: match.innings == 1 && inningsFinished
+          ? legalBalls
+          : match.firstInningsLegalBalls,
+      result: matchFinished
+          ? _result(match, batting, runsTotal, wickets)
+          : null,
     );
-    return updated;
+  }
+
+  MatchModel startSecondInnings(
+    MatchModel match, {
+    required String strikerId,
+    required String nonStrikerId,
+    required String bowlerId,
+  }) {
+    if (match.status != MatchStatus.inningsBreak || match.innings != 1) {
+      throw StateError('The first innings is not complete.');
+    }
+    final batting = match.bowlingTeam.copyWith(
+      totalRuns: 0,
+      wickets: 0,
+      extras: 0,
+    );
+    final bowling = match.battingTeam;
+    _validateOpeners(batting, strikerId, nonStrikerId);
+    _validateBowler(bowling, bowlerId);
+    return match.copyWith(
+      teamA: match.teamA.id == batting.id ? batting : bowling,
+      teamB: match.teamB.id == batting.id ? batting : bowling,
+      battingTeamId: batting.id,
+      bowlingTeamId: bowling.id,
+      strikerId: strikerId,
+      nonStrikerId: nonStrikerId,
+      currentBowlerId: bowlerId,
+      clearPreviousBowler: true,
+      currentRuns: 0,
+      currentWickets: 0,
+      legalBalls: 0,
+      innings: 2,
+      status: MatchStatus.live,
+      updatedAt: DateTime.now(),
+      syncStatus: SyncStatus.pending,
+      clearResult: true,
+    );
   }
 
   MatchModel changeBowler(MatchModel match, String bowlerId) {
-    if (!match.bowlingTeam.players.any((player) => player.id == bowlerId)) {
-      throw ArgumentError('Bowler must belong to the bowling team.');
+    _validateBowler(match.bowlingTeam, bowlerId);
+    if (bowlerId == match.currentBowlerId && match.overComplete) {
+      throw ArgumentError('The previous-over bowler cannot bowl again.');
     }
     return match.copyWith(
+      previousBowlerId: match.currentBowlerId,
       currentBowlerId: bowlerId,
       updatedAt: DateTime.now(),
       syncStatus: SyncStatus.pending,
@@ -152,56 +225,138 @@ class MatchEngine {
     syncStatus: SyncStatus.pending,
     result:
         match.result ??
-        '${match.battingTeam.name} finished ${match.currentRuns}/${match.currentWickets}',
+        'Match ended at ${match.battingTeam.name} '
+            '${match.currentRuns}/${match.currentWickets}',
   );
 
   MatchModel undo(MatchModel match) {
-    if (match.ballHistory.isEmpty) return match;
-    final seed = match.copyWith(
-      teamA: _resetTeam(match.teamA),
-      teamB: _resetTeam(match.teamB),
-      currentRuns: 0,
-      currentWickets: 0,
-      legalBalls: 0,
-      ballHistory: const [],
-      strikerId: match.battingTeam.players[0].id,
-      nonStrikerId: match.battingTeam.players[1].id,
-      status: MatchStatus.live,
-      result: null,
+    final currentBalls = match.ballHistory
+        .where((ball) => ball.innings == match.innings)
+        .toList();
+    if (currentBalls.isEmpty) return match;
+    final ball = currentBalls.last;
+    var batting = match.battingTeam;
+    var bowling = match.bowlingTeam;
+    final battingPlayers = [...batting.players];
+    final bowlingPlayers = [...bowling.players];
+    final batterIndex = battingPlayers.indexWhere(
+      (player) => player.id == ball.batsmanId,
     );
-    var rebuilt = seed;
-    for (final ball in match.ballHistory.take(match.ballHistory.length - 1)) {
-      final next = ball.isWicket
-          ? match.battingTeam.players
-                .where(
-                  (p) =>
-                      !p.isOut &&
-                      p.id != rebuilt.strikerId &&
-                      p.id != rebuilt.nonStrikerId,
-                )
-                .map((p) => p.id)
-                .firstOrNull
-          : null;
-      rebuilt = recordBall(
-        rebuilt,
-        runs: ball.runs,
-        ballType: ball.ballType,
-        wicketType: ball.wicketType,
-        dismissedBatsmanId: ball.dismissedBatsmanId,
-        nextBatsmanId: next,
-        ballId: ball.id,
-        timestamp: ball.timestamp,
+    final bowlerIndex = bowlingPlayers.indexWhere(
+      (player) => player.id == ball.bowlerId,
+    );
+    if (batterIndex >= 0) {
+      final player = battingPlayers[batterIndex];
+      battingPlayers[batterIndex] = player.copyWith(
+        runs: player.runs - ball.runs,
+        ballsFaced: player.ballsFaced - (ball.isLegalBall ? 1 : 0),
+        fours: player.fours - (ball.runs == 4 ? 1 : 0),
+        sixes: player.sixes - (ball.runs == 6 ? 1 : 0),
       );
     }
-    return rebuilt.copyWith(updatedAt: DateTime.now());
+    if (ball.dismissedBatsmanId != null) {
+      final outIndex = battingPlayers.indexWhere(
+        (player) => player.id == ball.dismissedBatsmanId,
+      );
+      if (outIndex >= 0) {
+        final player = battingPlayers[outIndex];
+        battingPlayers[outIndex] = PlayerModel(
+          id: player.id,
+          name: player.name,
+          runs: player.runs,
+          ballsFaced: player.ballsFaced,
+          fours: player.fours,
+          sixes: player.sixes,
+          ballsBowled: player.ballsBowled,
+          maidens: player.maidens,
+          wickets: player.wickets,
+          runsConceded: player.runsConceded,
+        );
+      }
+    }
+    if (bowlerIndex >= 0) {
+      final bowler = bowlingPlayers[bowlerIndex];
+      final credited =
+          ball.wicketType == WicketType.bowled ||
+          ball.wicketType == WicketType.caught ||
+          ball.wicketType == WicketType.lbw;
+      bowlingPlayers[bowlerIndex] = bowler.copyWith(
+        ballsBowled: bowler.ballsBowled - (ball.isLegalBall ? 1 : 0),
+        runsConceded: bowler.runsConceded - ball.totalRuns,
+        wickets: bowler.wickets - (credited ? 1 : 0),
+      );
+    }
+    batting = batting.copyWith(
+      players: battingPlayers,
+      totalRuns: batting.totalRuns - ball.totalRuns,
+      wickets: batting.wickets - (ball.isWicket ? 1 : 0),
+      extras: batting.extras - ball.extraRuns,
+    );
+    bowling = bowling.copyWith(players: bowlingPlayers);
+    return match.copyWith(
+      teamA: match.teamA.id == batting.id ? batting : bowling,
+      teamB: match.teamB.id == batting.id ? batting : bowling,
+      strikerId: ball.previousStrikerId ?? ball.batsmanId,
+      nonStrikerId: ball.previousNonStrikerId ?? match.nonStrikerId,
+      currentRuns: match.currentRuns - ball.totalRuns,
+      currentWickets: match.currentWickets - (ball.isWicket ? 1 : 0),
+      legalBalls: match.legalBalls - (ball.isLegalBall ? 1 : 0),
+      ballHistory: match.ballHistory.sublist(0, match.ballHistory.length - 1),
+      status: MatchStatus.live,
+      clearResult: true,
+      updatedAt: DateTime.now(),
+      syncStatus: SyncStatus.pending,
+    );
   }
 
-  TeamModel _resetTeam(TeamModel team) => team.copyWith(
-    totalRuns: 0,
-    wickets: 0,
-    extras: 0,
-    players: team.players
-        .map((p) => PlayerModel(id: p.id, name: p.name))
-        .toList(),
-  );
+  String _dismissalText(
+    WicketType type,
+    TeamModel bowling,
+    String bowlerId,
+    String? fielderId,
+  ) {
+    final bowler = bowling.players.firstWhere((p) => p.id == bowlerId).name;
+    final fielder = fielderId == null
+        ? null
+        : bowling.players.firstWhere((p) => p.id == fielderId).name;
+    return switch (type) {
+      WicketType.bowled => 'b $bowler',
+      WicketType.caught => 'c ${fielder ?? 'Unknown'} b $bowler',
+      WicketType.lbw => 'lbw b $bowler',
+      WicketType.runOut => 'run out (${fielder ?? 'Unknown'})',
+      WicketType.none => 'not out',
+    };
+  }
+
+  String _result(
+    MatchModel before,
+    TeamModel chasingTeam,
+    int chasingRuns,
+    int chasingWickets,
+  ) {
+    final target = before.target!;
+    if (chasingRuns >= target) {
+      final wicketsLeft = chasingTeam.players.length - 1 - chasingWickets;
+      return '${chasingTeam.name} won by $wicketsLeft wickets';
+    }
+    if (chasingRuns == target - 1) return 'Match tied';
+    final firstTeam = before.firstInningsBattingTeamId == before.teamA.id
+        ? before.teamA
+        : before.teamB;
+    return '${firstTeam.name} won by ${target - 1 - chasingRuns} runs';
+  }
+
+  void _validateOpeners(TeamModel team, String striker, String nonStriker) {
+    if (striker == nonStriker ||
+        !team.players.any((p) => p.id == striker && !p.isOut) ||
+        !team.players.any((p) => p.id == nonStriker && !p.isOut)) {
+      throw ArgumentError('Select two available batting players.');
+    }
+  }
+
+  void _validateBowler(TeamModel team, String id) {
+    if (!team.players.any((player) => player.id == id)) {
+      throw ArgumentError('Bowler must belong to the bowling team.');
+    }
+  }
 }

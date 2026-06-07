@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /matches/{matchId} {
+      allow read: if true;
+      allow create, update: if request.resource.data.id == matchId
+        && request.resource.data.keys()
+          .hasAll(['id', 'teamA', 'teamB', 'updatedAt', 'status'])
+        && request.resource.size() < 900000;
+      allow delete: if true;
+
+      match /teams/{teamId} {
+        allow read: if true;
+        allow create, update: if request.resource.data.id == teamId
+          && request.resource.data.keys().hasAll(['id', 'name', 'players']);
+        allow delete: if true;
+      }
+    }
+  }
+}

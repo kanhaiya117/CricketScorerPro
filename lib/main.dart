@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cricket_scorer_pro/core/routes/app_router.dart';
+import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
+import 'package:cricket_scorer_pro/core/localization/locale_provider.dart';
 import 'package:cricket_scorer_pro/core/services/firestore_match_service.dart';
 import 'package:cricket_scorer_pro/core/storage/hive_match_storage.dart';
 import 'package:cricket_scorer_pro/core/theme/app_theme.dart';
@@ -7,6 +9,8 @@ import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,6 +55,20 @@ class CricketScorerApp extends ConsumerWidget {
     theme: AppTheme.light(),
     darkTheme: AppTheme.dark(),
     themeMode: ref.watch(themeModeProvider),
+    locale: ref.watch(localeProvider),
+    supportedLocales: AppLocalizations.supportedLocales,
+    localizationsDelegates: const [
+      AppLocalizations.delegate,
+      GlobalMaterialLocalizations.delegate,
+      GlobalWidgetsLocalizations.delegate,
+      GlobalCupertinoLocalizations.delegate,
+    ],
+    builder: (context, child) => Column(
+      children: [
+        Expanded(child: child ?? const SizedBox.shrink()),
+        const AppFooter(),
+      ],
+    ),
     routerConfig: appRouter,
   );
 }

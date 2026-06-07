@@ -59,6 +59,7 @@ class MatchNotifier extends Notifier<MatchModel?> {
     WicketType wicketType = WicketType.none,
     String? dismissedBatsmanId,
     String? nextBatsmanId,
+    String? fielderId,
   }) async {
     final current = state;
     if (current == null) return null;
@@ -71,10 +72,30 @@ class MatchNotifier extends Notifier<MatchModel?> {
           wicketType: wicketType,
           dismissedBatsmanId: dismissedBatsmanId,
           nextBatsmanId: nextBatsmanId,
+          fielderId: fielderId,
         );
     state = updated;
     await _persist(updated);
     return updated;
+  }
+
+  Future<void> startSecondInnings({
+    required String strikerId,
+    required String nonStrikerId,
+    required String bowlerId,
+  }) async {
+    final current = state;
+    if (current == null) return;
+    final updated = ref
+        .read(matchEngineProvider)
+        .startSecondInnings(
+          current,
+          strikerId: strikerId,
+          nonStrikerId: nonStrikerId,
+          bowlerId: bowlerId,
+        );
+    state = updated;
+    await _persist(updated);
   }
 
   Future<void> undo() async {
@@ -102,8 +123,17 @@ class MatchNotifier extends Notifier<MatchModel?> {
   }
 
   Future<void> _persist(MatchModel match) async {
-    await ref.read(storageProvider).saveMatch(match);
+    final storage = ref.read(storageProvider);
+    await storage.saveMatch(match);
     ref.read(historyProvider.notifier).refresh();
+    final service = ref.read(firestoreServiceProvider);
+    if (service != null && ref.read(syncProvider).isOnline) {
+      unawaited(
+        service.syncMatch(match, storage).then((_) {
+          ref.read(historyProvider.notifier).refresh();
+        }),
+      );
+    }
   }
 }
 

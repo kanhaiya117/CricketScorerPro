@@ -1,6 +1,8 @@
 import 'package:cricket_scorer_pro/features/live_match/engine/match_insights.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
+import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
+import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,15 +19,32 @@ class LiveMatchScreen extends ConsumerWidget {
         body: const Center(child: Text('No active match found.')),
       );
     }
+    if (match.status == MatchStatus.inningsBreak) {
+      return _InningsBreakScreen(match: match);
+    }
     final striker = _player(match.battingTeam, match.strikerId);
     final nonStriker = _player(match.battingTeam, match.nonStrikerId);
     final bowler = _player(match.bowlingTeam, match.currentBowlerId);
-    final lastSix = match.ballHistory.reversed.take(6).toList().reversed;
+    final lastSix = match.ballHistory.reversed
+        .where((ball) => ball.innings == match.innings)
+        .take(6)
+        .toList()
+        .reversed;
     return PopScope(
       child: Scaffold(
         appBar: AppBar(
           title: Text('${match.teamA.name} vs ${match.teamB.name}'),
           actions: [
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Chip(
+                  avatar: const Icon(Icons.visibility, size: 17),
+                  label: Text(match.publicCode),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
             IconButton(
               tooltip: 'Scorecard',
               onPressed: () => context.push('/summary'),
@@ -33,134 +52,171 @@ class LiveMatchScreen extends ConsumerWidget {
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
-          children: [
-            _ScoreHero(match: match),
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    _PlayerRow(player: striker, label: 'Striker', active: true),
-                    const Divider(),
-                    _PlayerRow(player: nonStriker, label: 'Non-striker'),
-                    const Divider(),
-                    Row(
+        body: ResponsiveContent(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+            children: [
+              _ScoreHero(match: match),
+              if (match.innings == 2) ...[
+                const SizedBox(height: 10),
+                Card(
+                  color: Theme.of(context).colorScheme.secondaryContainer,
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        const Icon(Icons.sports_baseball),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '${bowler.name}  ${bowler.wickets}/${bowler.runsConceded} (${bowler.overs})',
-                          ),
+                        _ChaseStat(label: 'Target', value: '${match.target}'),
+                        _ChaseStat(
+                          label: 'Need',
+                          value:
+                              '${match.runsRequired} from ${match.ballsRemaining}',
+                        ),
+                        _ChaseStat(
+                          label: 'RRR',
+                          value: match.requiredRunRate.toStringAsFixed(2),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.auto_awesome, color: Colors.orange),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(const MatchInsights().forMatch(match)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'Last 6 balls',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              children: lastSix.map((ball) => _BallBadge(ball: ball)).toList(),
-            ),
-            const SizedBox(height: 18),
-            GridView.count(
-              crossAxisCount: MediaQuery.sizeOf(context).width > 500 ? 6 : 3,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 1.65,
-              children: [0, 1, 2, 3, 4, 6]
-                  .map(
-                    (run) => FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
+              ],
+              const SizedBox(height: 12),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _PlayerRow(
+                        player: striker,
+                        label: context.tr('striker'),
+                        active: true,
                       ),
-                      onPressed: () => _score(context, ref, match, runs: run),
-                      child: Text(
-                        '$run',
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                      const Divider(),
+                      _PlayerRow(
+                        player: nonStriker,
+                        label: context.tr('nonStriker'),
+                      ),
+                      const Divider(),
+                      Row(
+                        children: [
+                          const Icon(Icons.sports_baseball),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${bowler.name}  ${bowler.wickets}/${bowler.runsConceded} (${bowler.overs})',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.auto_awesome, color: Colors.orange),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(const MatchInsights().forMatch(match)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Last 6 balls',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: lastSix
+                    .map((ball) => _BallBadge(ball: ball))
+                    .toList(),
+              ),
+              const SizedBox(height: 18),
+              GridView.count(
+                crossAxisCount: MediaQuery.sizeOf(context).width > 500 ? 6 : 3,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.65,
+                children: [0, 1, 2, 3, 4, 6]
+                    .map(
+                      (run) => FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.green.shade700,
+                        ),
+                        onPressed: () => _score(context, ref, match, runs: run),
+                        child: Text(
+                          '$run',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: () => _wicketSheet(context, ref, match),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Wicket'),
                     ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: () => _wicketSheet(context, ref, match),
-                    icon: const Icon(Icons.close),
-                    label: const Text('Wicket'),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                      ),
+                      onPressed: () => _extraSheet(context, ref, match),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Extra'),
                     ),
-                    onPressed: () => _extraSheet(context, ref, match),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Extra'),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              alignment: WrapAlignment.spaceEvenly,
-              children: [
-                TextButton.icon(
-                  onPressed: match.ballHistory.isEmpty
-                      ? null
-                      : () => ref.read(currentMatchProvider.notifier).undo(),
-                  icon: const Icon(Icons.undo),
-                  label: const Text('Undo'),
-                ),
-                TextButton.icon(
-                  onPressed: () => _bowlerSheet(context, ref, match),
-                  icon: const Icon(Icons.swap_horiz),
-                  label: const Text('Bowler'),
-                ),
-                TextButton.icon(
-                  onPressed: () => _endMatch(context, ref),
-                  icon: const Icon(Icons.stop_circle_outlined),
-                  label: const Text('End'),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                alignment: WrapAlignment.spaceEvenly,
+                children: [
+                  TextButton.icon(
+                    onPressed: match.ballHistory.isEmpty
+                        ? null
+                        : () => ref.read(currentMatchProvider.notifier).undo(),
+                    icon: const Icon(Icons.undo),
+                    label: const Text('Undo'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _bowlerSheet(context, ref, match),
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('Bowler'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _endMatch(context, ref),
+                    icon: const Icon(Icons.stop_circle_outlined),
+                    label: const Text('End'),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -182,7 +238,8 @@ class LiveMatchScreen extends ConsumerWidget {
     if (!context.mounted || updated == null) return;
     if (updated.status == MatchStatus.completed) {
       context.go('/summary');
-    } else if (updated.overComplete &&
+    } else if (updated.status == MatchStatus.live &&
+        updated.overComplete &&
         updated.legalBalls != before.legalBalls &&
         updated.legalBalls % 6 == 0) {
       await _bowlerSheet(context, ref, updated, overComplete: true);
@@ -279,6 +336,35 @@ class LiveMatchScreen extends ConsumerWidget {
           ) ??
           match.strikerId;
     }
+    String? fielderId;
+    if (type == WicketType.caught || type == WicketType.runOut) {
+      if (!context.mounted) return;
+      fielderId = await showModalBottomSheet<String>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: Text(
+                  type == WicketType.caught
+                      ? 'Who took the catch?'
+                      : 'Select the fielder',
+                ),
+              ),
+              for (final player in match.bowlingTeam.players)
+                ListTile(
+                  leading: const Icon(Icons.person_outline),
+                  title: Text(player.name),
+                  onTap: () => Navigator.pop(context, player.id),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (fielderId == null) return;
+    }
     if (!context.mounted) return;
     final available = match.battingTeam.players
         .where(
@@ -312,6 +398,7 @@ class LiveMatchScreen extends ConsumerWidget {
           wicketType: type,
           dismissedBatsmanId: dismissed,
           nextBatsmanId: next,
+          fielderId: fielderId,
         );
     if (context.mounted && updated?.status == MatchStatus.completed) {
       context.go('/summary');
@@ -331,24 +418,63 @@ class LiveMatchScreen extends ConsumerWidget {
       builder: (context) => PopScope(
         canPop: !overComplete,
         child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(overComplete ? 'Over Complete' : 'Change Bowler'),
-                subtitle: const Text('Select the new bowler'),
-              ),
-              for (final player in match.bowlingTeam.players)
-                if (player.id != match.currentBowlerId)
-                  ListTile(
-                    leading: const Icon(Icons.sports_baseball),
-                    title: Text(player.name),
-                    subtitle: Text(
-                      '${player.wickets}/${player.runsConceded} (${player.overs})',
-                    ),
-                    onTap: () => Navigator.pop(context, player.id),
+          child: SizedBox(
+            height: MediaQuery.sizeOf(context).height * .76,
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text(overComplete ? 'Over Complete' : 'Change Bowler'),
+                  subtitle: Text(
+                    'Select from all ${match.bowlingTeam.players.length} players',
                   ),
-            ],
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: match.bowlingTeam.players.length,
+                    itemBuilder: (context, index) {
+                      final player = match.bowlingTeam.players[index];
+                      final unavailable = player.id == match.currentBowlerId;
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        color: unavailable
+                            ? Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHighest
+                            : null,
+                        child: ListTile(
+                          enabled: !unavailable,
+                          leading: CircleAvatar(
+                            child: Icon(
+                              unavailable ? Icons.block : Icons.sports_baseball,
+                            ),
+                          ),
+                          title: Text(player.name),
+                          subtitle: Text(
+                            unavailable
+                                ? 'Previous over bowler - unavailable'
+                                : '${player.overs} ov  •  '
+                                      '${player.runsConceded} runs  •  '
+                                      '${player.wickets} wickets  •  '
+                                      'Eco ${player.economy.toStringAsFixed(1)}',
+                          ),
+                          trailing: unavailable
+                              ? const Icon(Icons.lock_outline)
+                              : const Icon(Icons.arrow_forward),
+                          onTap: unavailable
+                              ? null
+                              : () => Navigator.pop(context, player.id),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -469,4 +595,180 @@ class _BallBadge extends StatelessWidget {
       child: Text(label),
     );
   }
+}
+
+class _ChaseStat extends StatelessWidget {
+  const _ChaseStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(label, style: Theme.of(context).textTheme.labelMedium),
+      Text(
+        value,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+    ],
+  );
+}
+
+class _InningsBreakScreen extends ConsumerWidget {
+  const _InningsBreakScreen({required this.match});
+
+  final MatchModel match;
+
+  Future<String?> _selectPlayer(
+    BuildContext context, {
+    required String title,
+    required TeamModel team,
+    String? excludedId,
+    IconData icon = Icons.person,
+  }) => showModalBottomSheet<String>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * .72,
+        ),
+        child: Column(
+          children: [
+            ListTile(
+              leading: Icon(icon),
+              title: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                children: [
+                  for (final player in team.players)
+                    Card(
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
+                      child: ListTile(
+                        enabled: !player.isOut && player.id != excludedId,
+                        leading: CircleAvatar(child: Icon(icon)),
+                        title: Text(player.name),
+                        subtitle: Text(
+                          player.isOut
+                              ? 'Out - unavailable'
+                              : player.id == excludedId
+                              ? 'Already selected'
+                              : 'Available',
+                        ),
+                        trailing: player.isOut || player.id == excludedId
+                            ? const Icon(Icons.block)
+                            : const Icon(Icons.check_circle_outline),
+                        onTap: player.isOut || player.id == excludedId
+                            ? null
+                            : () => Navigator.pop(context, player.id),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  Future<void> _start(BuildContext context, WidgetRef ref) async {
+    final batting = match.bowlingTeam;
+    final bowling = match.battingTeam;
+    final striker = await _selectPlayer(
+      context,
+      title: 'Select Striker',
+      team: batting,
+      icon: Icons.sports_cricket,
+    );
+    if (striker == null || !context.mounted) return;
+    final nonStriker = await _selectPlayer(
+      context,
+      title: 'Select Non-striker',
+      team: batting,
+      excludedId: striker,
+      icon: Icons.people_alt_outlined,
+    );
+    if (nonStriker == null || !context.mounted) return;
+    final bowler = await _selectPlayer(
+      context,
+      title: 'Select Opening Bowler',
+      team: bowling,
+      icon: Icons.sports_baseball,
+    );
+    if (bowler == null) return;
+    await ref
+        .read(currentMatchProvider.notifier)
+        .startSecondInnings(
+          strikerId: striker,
+          nonStrikerId: nonStriker,
+          bowlerId: bowler,
+        );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => Scaffold(
+    appBar: AppBar(title: const Text('Innings Break')),
+    body: ResponsiveContent(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Card(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  children: [
+                    const Icon(Icons.swap_horiz, size: 54),
+                    const SizedBox(height: 12),
+                    Text(
+                      '${match.battingTeam.name} Innings Complete',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${match.currentRuns}/${match.currentWickets} '
+                      '(${match.overs} overs)',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      '${match.bowlingTeam.name} need ${match.target} runs to win',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () => _start(context, ref),
+                        icon: const Icon(Icons.play_arrow),
+                        label: const Text('Set Players & Start Chase'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

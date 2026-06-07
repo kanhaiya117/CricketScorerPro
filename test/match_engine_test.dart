@@ -107,12 +107,83 @@ void main() {
     expect(result.bowlingTeam.players.first.wickets, 0);
   });
 
-  test('match completes when over limit is reached', () {
+  test('first innings moves to innings break at over limit', () {
     var result = match().copyWith(totalOvers: 1);
     for (var i = 0; i < 6; i++) {
       result = engine.recordBall(result, runs: 0);
     }
 
+    expect(result.status, MatchStatus.inningsBreak);
+    expect(result.target, 1);
+  });
+
+  test('odd run on final ball swaps twice and keeps original striker', () {
+    var result = match();
+    for (var i = 0; i < 5; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+    result = engine.recordBall(result, runs: 1);
+
+    expect(result.strikerId, 'b1');
+    expect(result.nonStrikerId, 'b2');
+  });
+
+  test('second innings completes when target is chased', () {
+    var result = match().copyWith(totalOvers: 1);
+    result = engine.recordBall(result, runs: 4);
+    for (var i = 0; i < 5; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+    result = engine.startSecondInnings(
+      result,
+      strikerId: 'p1',
+      nonStrikerId: 'p2',
+      bowlerId: 'b1',
+    );
+    result = engine.recordBall(result, runs: 6);
+
     expect(result.status, MatchStatus.completed);
+    expect(result.result, contains('won by'));
+  });
+
+  test('caught dismissal records catcher and bowler', () {
+    final result = engine.recordBall(
+      match(),
+      runs: 0,
+      wicketType: WicketType.caught,
+      dismissedBatsmanId: 'b1',
+      nextBatsmanId: 'b3',
+      fielderId: 'p2',
+    );
+
+    expect(
+      result.battingTeam.players.first.dismissalText,
+      'c Bowler Two b Bowler One',
+    );
+  });
+
+  test('previous over bowler cannot continue', () {
+    var result = match();
+    for (var i = 0; i < 6; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+
+    expect(() => engine.changeBowler(result, 'p1'), throwsArgumentError);
+  });
+
+  test('older saved match JSON loads without new innings fields', () {
+    final json = match().toJson()
+      ..remove('firstInningsBattingTeamId')
+      ..remove('firstInningsRuns')
+      ..remove('firstInningsWickets')
+      ..remove('firstInningsLegalBalls')
+      ..remove('previousBowlerId');
+
+    final restored = MatchModel.fromJson(json);
+
+    expect(restored.innings, 1);
+    expect(restored.firstInningsRuns, isNull);
+    expect(restored.status, MatchStatus.live);
+    expect(restored.publicCode.length, 6);
   });
 }

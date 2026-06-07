@@ -4,7 +4,7 @@ enum BallType { normal, wide, noBall, deadBall }
 
 enum WicketType { none, bowled, caught, lbw, runOut }
 
-enum MatchStatus { setup, live, completed }
+enum MatchStatus { setup, live, inningsBreak, completed }
 
 enum SyncStatus { synced, pending, failed }
 
@@ -22,6 +22,7 @@ class PlayerModel extends Equatable {
     this.maidens = 0,
     this.wickets = 0,
     this.runsConceded = 0,
+    this.dismissalText,
   });
 
   factory PlayerModel.fromJson(Map<String, dynamic> json) => PlayerModel(
@@ -39,6 +40,7 @@ class PlayerModel extends Equatable {
     maidens: json['maidens'] as int? ?? 0,
     wickets: json['wickets'] as int? ?? 0,
     runsConceded: json['runsConceded'] as int? ?? 0,
+    dismissalText: json['dismissalText'] as String?,
   );
 
   final String id;
@@ -53,6 +55,7 @@ class PlayerModel extends Equatable {
   final int maidens;
   final int wickets;
   final int runsConceded;
+  final String? dismissalText;
 
   double get strikeRate => ballsFaced == 0 ? 0 : runs * 100 / ballsFaced;
   String get overs => '${ballsBowled ~/ 6}.${ballsBowled % 6}';
@@ -71,6 +74,7 @@ class PlayerModel extends Equatable {
     int? maidens,
     int? wickets,
     int? runsConceded,
+    String? dismissalText,
   }) => PlayerModel(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -84,6 +88,7 @@ class PlayerModel extends Equatable {
     maidens: maidens ?? this.maidens,
     wickets: wickets ?? this.wickets,
     runsConceded: runsConceded ?? this.runsConceded,
+    dismissalText: dismissalText ?? this.dismissalText,
   );
 
   Map<String, dynamic> toJson() => {
@@ -102,6 +107,7 @@ class PlayerModel extends Equatable {
     'wickets': wickets,
     'runsConceded': runsConceded,
     'economy': economy,
+    'dismissalText': dismissalText,
   };
 
   @override
@@ -118,6 +124,7 @@ class PlayerModel extends Equatable {
     maidens,
     wickets,
     runsConceded,
+    dismissalText,
   ];
 }
 
@@ -192,6 +199,10 @@ class BallModel extends Equatable {
     required this.isLegalBall,
     required this.timestamp,
     this.dismissedBatsmanId,
+    this.fielderId,
+    this.innings = 1,
+    this.previousStrikerId,
+    this.previousNonStrikerId,
   });
 
   factory BallModel.fromJson(Map<String, dynamic> json) => BallModel(
@@ -209,6 +220,10 @@ class BallModel extends Equatable {
     isLegalBall: json['isLegalBall'] as bool,
     timestamp: DateTime.parse(json['timestamp'] as String),
     dismissedBatsmanId: json['dismissedBatsmanId'] as String?,
+    fielderId: json['fielderId'] as String?,
+    innings: json['innings'] as int? ?? 1,
+    previousStrikerId: json['previousStrikerId'] as String?,
+    previousNonStrikerId: json['previousNonStrikerId'] as String?,
   );
 
   final String id;
@@ -223,6 +238,10 @@ class BallModel extends Equatable {
   final bool isLegalBall;
   final DateTime timestamp;
   final String? dismissedBatsmanId;
+  final String? fielderId;
+  final int innings;
+  final String? previousStrikerId;
+  final String? previousNonStrikerId;
 
   int get totalRuns => runs + extraRuns;
   bool get isWicket => wicketType != WicketType.none;
@@ -240,6 +259,10 @@ class BallModel extends Equatable {
     bool? isLegalBall,
     DateTime? timestamp,
     String? dismissedBatsmanId,
+    String? fielderId,
+    int? innings,
+    String? previousStrikerId,
+    String? previousNonStrikerId,
   }) => BallModel(
     id: id ?? this.id,
     overNumber: overNumber ?? this.overNumber,
@@ -253,6 +276,10 @@ class BallModel extends Equatable {
     isLegalBall: isLegalBall ?? this.isLegalBall,
     timestamp: timestamp ?? this.timestamp,
     dismissedBatsmanId: dismissedBatsmanId ?? this.dismissedBatsmanId,
+    fielderId: fielderId ?? this.fielderId,
+    innings: innings ?? this.innings,
+    previousStrikerId: previousStrikerId ?? this.previousStrikerId,
+    previousNonStrikerId: previousNonStrikerId ?? this.previousNonStrikerId,
   );
 
   Map<String, dynamic> toJson() => {
@@ -268,6 +295,10 @@ class BallModel extends Equatable {
     'isLegalBall': isLegalBall,
     'timestamp': timestamp.toIso8601String(),
     'dismissedBatsmanId': dismissedBatsmanId,
+    'fielderId': fielderId,
+    'innings': innings,
+    'previousStrikerId': previousStrikerId,
+    'previousNonStrikerId': previousNonStrikerId,
   };
 
   @override
@@ -284,6 +315,10 @@ class BallModel extends Equatable {
     isLegalBall,
     timestamp,
     dismissedBatsmanId,
+    fielderId,
+    innings,
+    previousStrikerId,
+    previousNonStrikerId,
   ];
 }
 
@@ -343,6 +378,7 @@ class MatchModel extends Equatable {
     required this.totalOvers,
     required this.createdAt,
     required this.updatedAt,
+    this.matchCode,
     this.currentRuns = 0,
     this.currentWickets = 0,
     this.legalBalls = 0,
@@ -351,6 +387,11 @@ class MatchModel extends Equatable {
     this.status = MatchStatus.live,
     this.syncStatus = SyncStatus.pending,
     this.result,
+    this.firstInningsBattingTeamId,
+    this.firstInningsRuns,
+    this.firstInningsWickets,
+    this.firstInningsLegalBalls,
+    this.previousBowlerId,
   });
 
   factory MatchModel.fromJson(Map<String, dynamic> json) => MatchModel(
@@ -372,11 +413,17 @@ class MatchModel extends Equatable {
         .toList(),
     createdAt: DateTime.parse(json['createdAt'] as String),
     updatedAt: DateTime.parse(json['updatedAt'] as String),
+    matchCode: json['matchCode'] as String?,
     status: MatchStatus.values.byName(json['status'] as String),
     syncStatus: SyncStatus.values.byName(
       json['syncStatus'] as String? ?? SyncStatus.pending.name,
     ),
     result: json['result'] as String?,
+    firstInningsBattingTeamId: json['firstInningsBattingTeamId'] as String?,
+    firstInningsRuns: json['firstInningsRuns'] as int?,
+    firstInningsWickets: json['firstInningsWickets'] as int?,
+    firstInningsLegalBalls: json['firstInningsLegalBalls'] as int?,
+    previousBowlerId: json['previousBowlerId'] as String?,
   );
 
   final String id;
@@ -395,9 +442,15 @@ class MatchModel extends Equatable {
   final List<BallModel> ballHistory;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? matchCode;
   final MatchStatus status;
   final SyncStatus syncStatus;
   final String? result;
+  final String? firstInningsBattingTeamId;
+  final int? firstInningsRuns;
+  final int? firstInningsWickets;
+  final int? firstInningsLegalBalls;
+  final String? previousBowlerId;
 
   TeamModel get battingTeam => teamA.id == battingTeamId ? teamA : teamB;
   TeamModel get bowlingTeam => teamA.id == bowlingTeamId ? teamA : teamB;
@@ -406,6 +459,23 @@ class MatchModel extends Equatable {
       legalBalls == 0 ? 0 : currentRuns * 6 / legalBalls;
   bool get overComplete => legalBalls > 0 && legalBalls % 6 == 0;
   int get maxWickets => battingTeam.players.length - 1;
+  int? get target => firstInningsRuns == null ? null : firstInningsRuns! + 1;
+  int? get runsRequired =>
+      target == null ? null : (target! - currentRuns).clamp(0, target!);
+  int get ballsRemaining => totalOvers * 6 - legalBalls;
+  String get publicCode {
+    final compact = id.replaceAll('-', '').toUpperCase();
+    return matchCode ??
+        (compact.length >= 6
+            ? compact.substring(0, 6)
+            : compact.padRight(6, 'X'));
+  }
+
+  double get requiredRunRate => innings != 2 || runsRequired == null
+      ? 0
+      : ballsRemaining <= 0
+      ? runsRequired!.toDouble()
+      : runsRequired! * 6 / ballsRemaining;
 
   MatchModel copyWith({
     String? id,
@@ -424,9 +494,17 @@ class MatchModel extends Equatable {
     List<BallModel>? ballHistory,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? matchCode,
     MatchStatus? status,
     SyncStatus? syncStatus,
     String? result,
+    bool clearResult = false,
+    String? firstInningsBattingTeamId,
+    int? firstInningsRuns,
+    int? firstInningsWickets,
+    int? firstInningsLegalBalls,
+    String? previousBowlerId,
+    bool clearPreviousBowler = false,
   }) => MatchModel(
     id: id ?? this.id,
     teamA: teamA ?? this.teamA,
@@ -444,9 +522,19 @@ class MatchModel extends Equatable {
     ballHistory: ballHistory ?? this.ballHistory,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    matchCode: matchCode ?? this.matchCode,
     status: status ?? this.status,
     syncStatus: syncStatus ?? this.syncStatus,
-    result: result ?? this.result,
+    result: clearResult ? null : result ?? this.result,
+    firstInningsBattingTeamId:
+        firstInningsBattingTeamId ?? this.firstInningsBattingTeamId,
+    firstInningsRuns: firstInningsRuns ?? this.firstInningsRuns,
+    firstInningsWickets: firstInningsWickets ?? this.firstInningsWickets,
+    firstInningsLegalBalls:
+        firstInningsLegalBalls ?? this.firstInningsLegalBalls,
+    previousBowlerId: clearPreviousBowler
+        ? null
+        : previousBowlerId ?? this.previousBowlerId,
   );
 
   Map<String, dynamic> toJson() => {
@@ -466,9 +554,15 @@ class MatchModel extends Equatable {
     'ballHistory': ballHistory.map((e) => e.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
+    'matchCode': publicCode,
     'status': status.name,
     'syncStatus': syncStatus.name,
     'result': result,
+    'firstInningsBattingTeamId': firstInningsBattingTeamId,
+    'firstInningsRuns': firstInningsRuns,
+    'firstInningsWickets': firstInningsWickets,
+    'firstInningsLegalBalls': firstInningsLegalBalls,
+    'previousBowlerId': previousBowlerId,
   };
 
   @override
@@ -489,8 +583,14 @@ class MatchModel extends Equatable {
     ballHistory,
     createdAt,
     updatedAt,
+    matchCode,
     status,
     syncStatus,
     result,
+    firstInningsBattingTeamId,
+    firstInningsRuns,
+    firstInningsWickets,
+    firstInningsLegalBalls,
+    previousBowlerId,
   ];
 }

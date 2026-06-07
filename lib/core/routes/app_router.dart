@@ -3,6 +3,7 @@ import 'package:cricket_scorer_pro/features/live_match/presentation/live_match_s
 import 'package:cricket_scorer_pro/features/match_history/presentation/match_history_screen.dart';
 import 'package:cricket_scorer_pro/features/match_setup/presentation/match_setup_screen.dart';
 import 'package:cricket_scorer_pro/features/match_summary/presentation/match_summary_screen.dart';
+import 'package:cricket_scorer_pro/features/spectator/presentation/spectator_scoreboard_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -24,6 +25,13 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/history',
       pageBuilder: (_, state) => _page(state, const MatchHistoryScreen()),
+    ),
+    GoRoute(
+      path: '/watch/:code',
+      pageBuilder: (_, state) => _page(
+        state,
+        SpectatorScoreboardScreen(code: state.pathParameters['code']!),
+      ),
     ),
   ],
 );

@@ -1,5 +1,7 @@
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
+import 'package:cricket_scorer_pro/core/services/pdf_scorecard_service.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
+import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,24 +19,20 @@ class MatchSummaryScreen extends ConsumerWidget {
         body: const Center(child: Text('Match not found.')),
       );
     }
-    final batters = [...match.battingTeam.players]
-      ..sort((a, b) => b.runs.compareTo(a.runs));
-    final bowlers = [...match.bowlingTeam.players]
-      ..sort((a, b) => b.wickets.compareTo(a.wickets));
-    final topBatter = batters.first;
-    final topBowler = bowlers.first;
-    final text =
-        '''
-${match.battingTeam.name} ${match.currentRuns}/${match.currentWickets} (${match.overs})
+    final firstId =
+        match.firstInningsBattingTeamId ??
+        (match.innings == 1 ? match.battingTeamId : match.bowlingTeamId);
+    final first = match.teamA.id == firstId ? match.teamA : match.teamB;
+    final second = match.teamA.id == firstId ? match.teamB : match.teamA;
+    final firstBalls =
+        match.firstInningsLegalBalls ??
+        match.ballHistory
+            .where((ball) => ball.innings == 1 && ball.isLegalBall)
+            .length;
+    final secondBalls = match.ballHistory
+        .where((ball) => ball.innings == 2 && ball.isLegalBall)
+        .length;
 
-Top Batter:
-${topBatter.name} ${topBatter.runs}(${topBatter.ballsFaced})
-
-Top Bowler:
-${topBowler.name} ${topBowler.wickets}/${topBowler.runsConceded}
-
-Result:
-${match.result ?? 'Match in progress'}''';
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -42,127 +40,127 @@ ${match.result ?? 'Match in progress'}''';
         ),
         actions: [
           IconButton(
-            tooltip: 'Share',
-            onPressed: () => SharePlus.instance.share(
-              ShareParams(text: text, subject: 'Cric Score Pro'),
-            ),
+            tooltip: 'Share full scorecard',
+            onPressed: () async {
+              final file = await const PdfScorecardService().generate(match);
+              await SharePlus.instance.share(
+                ShareParams(
+                  files: [XFile(file.path, mimeType: 'application/pdf')],
+                  subject: 'Cric Score Pro Scorecard',
+                  text:
+                      '${match.teamA.name} vs ${match.teamB.name} '
+                      '(${match.publicCode})',
+                ),
+              );
+            },
             icon: const Icon(Icons.share_outlined),
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Hero(
-            tag: 'score-${match.id}',
-            child: Card(
-              color: Theme.of(context).colorScheme.primary,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  children: [
-                    Text(
-                      match.battingTeam.name,
-                      style: const TextStyle(color: Colors.white, fontSize: 20),
+      body: ResponsiveContent(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            Hero(
+              tag: 'score-${match.id}',
+              child: Card(
+                color: Theme.of(context).colorScheme.primary,
+                child: Padding(
+                  padding: const EdgeInsets.all(22),
+                  child: DefaultTextStyle(
+                    style: const TextStyle(color: Colors.white),
+                    child: Column(
+                      children: [
+                        Text(
+                          '${match.teamA.name} vs ${match.teamB.name}',
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${first.name} ${first.totalRuns}/${first.wickets} '
+                          '(${_overs(firstBalls)})',
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (match.innings == 2)
+                          Text(
+                            '${second.name} ${second.totalRuns}/${second.wickets} '
+                            '(${_overs(secondBalls)})',
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                      ],
                     ),
-                    Text(
-                      '${match.currentRuns}/${match.currentWickets}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      '${match.overs} overs',
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          if (match.result != null)
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Text(
-                match.result!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleLarge,
+            if (match.result != null)
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Text(
+                  match.result!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
               ),
+            _InningsCard(
+              title: '1st Innings - ${first.name}',
+              batting: first,
+              bowling: second,
+              legalBalls: firstBalls,
             ),
-          _Section(
-            title: 'Batting',
-            child: DataTable(
-              columnSpacing: 20,
-              columns: const [
-                DataColumn(label: Text('Batter')),
-                DataColumn(label: Text('R')),
-                DataColumn(label: Text('B')),
-                DataColumn(label: Text('SR')),
-              ],
-              rows: match.battingTeam.players
-                  .map(
-                    (p) => DataRow(
-                      cells: [
-                        DataCell(Text('${p.name}${p.isOut ? '' : '*'}')),
-                        DataCell(Text('${p.runs}')),
-                        DataCell(Text('${p.ballsFaced}')),
-                        DataCell(Text(p.strikeRate.toStringAsFixed(1))),
-                      ],
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          _Section(
-            title: 'Bowling',
-            child: DataTable(
-              columnSpacing: 18,
-              columns: const [
-                DataColumn(label: Text('Bowler')),
-                DataColumn(label: Text('O')),
-                DataColumn(label: Text('R')),
-                DataColumn(label: Text('W')),
-                DataColumn(label: Text('Eco')),
-              ],
-              rows: match.bowlingTeam.players
-                  .where((p) => p.ballsBowled > 0)
-                  .map(
-                    (p) => DataRow(
-                      cells: [
-                        DataCell(Text(p.name)),
-                        DataCell(Text(p.overs)),
-                        DataCell(Text('${p.runsConceded}')),
-                        DataCell(Text('${p.wickets}')),
-                        DataCell(Text(p.economy.toStringAsFixed(1))),
-                      ],
-                    ),
-                  )
-                  .toList(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (match.status == MatchStatus.completed)
-            FilledButton(
-              onPressed: () => context.go('/'),
-              child: const Text('Back to Dashboard'),
-            ),
-        ],
+            if (match.innings == 2) ...[
+              const SizedBox(height: 12),
+              _InningsCard(
+                title: '2nd Innings - ${second.name}',
+                batting: second,
+                bowling: first,
+                legalBalls: secondBalls,
+              ),
+            ],
+            if (match.status == MatchStatus.live) ...[
+              const SizedBox(height: 12),
+              _CurrentPlayers(match: match),
+            ],
+            const SizedBox(height: 16),
+            if (match.status == MatchStatus.completed)
+              FilledButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Back to Dashboard'),
+              ),
+          ],
+        ),
       ),
     );
   }
+
+  static String _overs(int balls) => '${balls ~/ 6}.${balls % 6}';
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
+class _InningsCard extends StatelessWidget {
+  const _InningsCard({
+    required this.title,
+    required this.batting,
+    required this.bowling,
+    required this.legalBalls,
+  });
+
   final String title;
-  final Widget child;
+  final TeamModel batting;
+  final TeamModel bowling;
+  final int legalBalls;
 
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -172,9 +170,72 @@ class _Section extends StatelessWidget {
               context,
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),
-          SingleChildScrollView(scrollDirection: Axis.horizontal, child: child),
+          Text(
+            '${batting.totalRuns}/${batting.wickets} '
+            '(${legalBalls ~/ 6}.${legalBalls % 6})  •  '
+            'Extras ${batting.extras}',
+          ),
+          const Divider(),
+          const Text('Batting', style: TextStyle(fontWeight: FontWeight.bold)),
+          for (final player in batting.players)
+            if (player.ballsFaced > 0 || player.isOut)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(player.name),
+                subtitle: Text(player.dismissalText ?? 'not out'),
+                trailing: Text(
+                  '${player.runs} (${player.ballsFaced})\n'
+                  'SR ${player.strikeRate.toStringAsFixed(1)}',
+                  textAlign: TextAlign.right,
+                ),
+              ),
+          const Divider(),
+          const Text('Bowling', style: TextStyle(fontWeight: FontWeight.bold)),
+          for (final player in bowling.players)
+            if (player.ballsBowled > 0)
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text(player.name),
+                subtitle: Text(
+                  '${player.overs} overs  •  Eco '
+                  '${player.economy.toStringAsFixed(1)}',
+                ),
+                trailing: Text('${player.wickets}/${player.runsConceded}'),
+              ),
         ],
       ),
     ),
   );
+}
+
+class _CurrentPlayers extends StatelessWidget {
+  const _CurrentPlayers({required this.match});
+
+  final MatchModel match;
+
+  @override
+  Widget build(BuildContext context) {
+    String name(TeamModel team, String id) =>
+        team.players.firstWhere((player) => player.id == id).name;
+    return Card(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Current Players',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text('Striker: ${name(match.battingTeam, match.strikerId)}'),
+            Text('Non-striker: ${name(match.battingTeam, match.nonStrikerId)}'),
+            Text('Bowler: ${name(match.bowlingTeam, match.currentBowlerId)}'),
+          ],
+        ),
+      ),
+    );
+  }
 }

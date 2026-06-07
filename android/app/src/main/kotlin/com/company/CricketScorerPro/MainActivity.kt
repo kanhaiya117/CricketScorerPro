@@ -1,4 +1,4 @@
-package com.cricketscorerpro.cricket_scorer_pro
+package com.company.CricketScorerPro
 
 import io.flutter.embedding.android.FlutterActivity
 

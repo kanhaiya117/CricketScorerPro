@@ -39,9 +39,39 @@ class FirestoreMatchService {
     return snapshot.docs.map((doc) => MatchModel.fromJson(doc.data())).toList();
   }
 
+  Future<MatchModel?> findByCode(String code) async {
+    final snapshot = await _matches
+        .where('matchCode', isEqualTo: code.trim().toUpperCase())
+        .limit(1)
+        .get();
+    return snapshot.docs.isEmpty
+        ? null
+        : MatchModel.fromJson(snapshot.docs.first.data());
+  }
+
+  Stream<MatchModel?> watchByCode(String code) => _matches
+      .where('matchCode', isEqualTo: code.trim().toUpperCase())
+      .limit(1)
+      .snapshots()
+      .map(
+        (snapshot) => snapshot.docs.isEmpty
+            ? null
+            : MatchModel.fromJson(snapshot.docs.first.data()),
+      );
+
   Future<void> syncPendingMatches(HiveMatchStorage storage) async {
     for (final match in storage.getPendingSyncMatches()) {
       try {
+        final remote = await _matches.doc(match.id).get();
+        if (remote.exists && remote.data() != null) {
+          final remoteMatch = MatchModel.fromJson(remote.data()!);
+          if (remoteMatch.updatedAt.isAfter(match.updatedAt)) {
+            await storage.updateMatch(
+              remoteMatch.copyWith(syncStatus: SyncStatus.synced),
+            );
+            continue;
+          }
+        }
         await updateMatch(match);
         await storage.updateMatch(
           match.copyWith(syncStatus: SyncStatus.synced),
@@ -51,6 +81,25 @@ class FirestoreMatchService {
           match.copyWith(syncStatus: SyncStatus.failed),
         );
       }
+    }
+  }
+
+  Future<void> syncMatch(MatchModel match, HiveMatchStorage storage) async {
+    try {
+      final remote = await _matches.doc(match.id).get();
+      if (remote.exists && remote.data() != null) {
+        final remoteMatch = MatchModel.fromJson(remote.data()!);
+        if (remoteMatch.updatedAt.isAfter(match.updatedAt)) {
+          await storage.updateMatch(
+            remoteMatch.copyWith(syncStatus: SyncStatus.synced),
+          );
+          return;
+        }
+      }
+      await updateMatch(match);
+      await storage.updateMatch(match.copyWith(syncStatus: SyncStatus.synced));
+    } catch (_) {
+      await storage.updateMatch(match.copyWith(syncStatus: SyncStatus.failed));
     }
   }
 }
