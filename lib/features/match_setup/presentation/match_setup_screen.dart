@@ -9,15 +9,17 @@ import 'package:speech_to_text/speech_to_text.dart';
 import 'package:uuid/uuid.dart';
 
 class MatchSetupScreen extends ConsumerStatefulWidget {
-  const MatchSetupScreen({super.key});
+  const MatchSetupScreen({this.template, super.key});
+
+  final MatchModel? template;
 
   @override
   ConsumerState<MatchSetupScreen> createState() => _MatchSetupScreenState();
 }
 
 class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
-  final _teamA = TextEditingController(text: 'Team A');
-  final _teamB = TextEditingController(text: 'Team B');
+  late final TextEditingController _teamA;
+  late final TextEditingController _teamB;
   late final List<TextEditingController> _playersA;
   late final List<TextEditingController> _playersB;
   bool _teamAConfigured = false;
@@ -34,13 +36,43 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   @override
   void initState() {
     super.initState();
-    _playersA = _defaultPlayers('Team A');
-    _playersB = _defaultPlayers('Team B');
+    final template = widget.template;
+    _teamA = TextEditingController(text: template?.teamA.name ?? 'Team A');
+    _teamB = TextEditingController(text: template?.teamB.name ?? 'Team B');
+    _playersA = template == null
+        ? _defaultPlayers('Team A')
+        : _playersFromTeam(template.teamA, 'Team A');
+    _playersB = template == null
+        ? _defaultPlayers('Team B')
+        : _playersFromTeam(template.teamB, 'Team B');
+    _teamAConfigured = template != null;
+    _teamBConfigured = template != null;
+    _overs = template?.totalOvers ?? 5;
+    if (template != null) {
+      final firstBattingId =
+          template.firstInningsBattingTeamId ??
+          (template.innings == 1
+              ? template.battingTeamId
+              : template.bowlingTeamId);
+      _batting = firstBattingId == template.teamB.id ? 'B' : 'A';
+    }
   }
 
   List<TextEditingController> _defaultPlayers(String team) => List.generate(
     11,
     (index) => TextEditingController(text: '$team Player ${index + 1}'),
+  );
+
+  List<TextEditingController> _playersFromTeam(
+    TeamModel team,
+    String fallbackTeam,
+  ) => List.generate(
+    11,
+    (index) => TextEditingController(
+      text: index < team.players.length
+          ? team.players[index].name
+          : '$fallbackTeam Player ${index + 1}',
+    ),
   );
 
   @override

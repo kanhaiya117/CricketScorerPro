@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
+import 'package:cricket_scorer_pro/shared/widgets/copyable_match_code.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -138,7 +139,11 @@ class _SpectatorScoreboardScreenState
                                   'CRR ${match.currentRunRate.toStringAsFixed(2)}',
                                 ),
                                 const SizedBox(height: 8),
-                                Text('Code: ${match.publicCode}'),
+                                CopyableMatchCode(
+                                  code: match.publicCode,
+                                  compact: true,
+                                  onPrimary: true,
+                                ),
                               ],
                             ),
                           ),

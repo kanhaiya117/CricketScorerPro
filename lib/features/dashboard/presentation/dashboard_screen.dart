@@ -4,6 +4,7 @@ import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.
 import 'package:cricket_scorer_pro/main.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
 import 'package:cricket_scorer_pro/shared/widgets/app_background.dart';
+import 'package:cricket_scorer_pro/shared/widgets/copyable_match_code.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +62,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final currentMatch = ref.watch(currentMatchProvider);
     final sync = ref.watch(syncProvider);
     final locale = ref.watch(localeProvider);
+    final completedMatches = matches
+        .where((match) => match.status == MatchStatus.completed)
+        .toList();
+    final lastCompleted = completedMatches.isEmpty
+        ? null
+        : completedMatches.first;
     final activeMatch =
         currentMatch != null &&
             currentMatch.status != MatchStatus.completed &&
@@ -152,13 +159,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     _ModeCard(
                       icon: Icons.edit_note,
                       title: context.tr('startMatch'),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: () => context.push('/setup'),
-                          icon: const Icon(Icons.add_circle_outline),
-                          label: Text(context.tr('startMatch')),
-                        ),
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () => context.push('/setup'),
+                              icon: const Icon(Icons.add_circle_outline),
+                              label: Text(context.tr('startMatch')),
+                            ),
+                          ),
+                          if (lastCompleted != null) ...[
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: () => context.push(
+                                  '/setup',
+                                  extra: lastCompleted,
+                                ),
+                                icon: const Icon(Icons.replay),
+                                label: Text(context.tr('rematch')),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -290,10 +315,7 @@ class _ResumeCard extends ConsumerWidget {
                   ),
                 ),
               ),
-              Chip(
-                avatar: const Icon(Icons.visibility, size: 18),
-                label: Text(match.publicCode),
-              ),
+              CopyableMatchCode(code: match.publicCode, compact: true),
             ],
           ),
           Text(

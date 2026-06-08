@@ -258,6 +258,7 @@ class AppLocalizations {
   static const _common = <String, Map<String, String>>{
     'en': {
       'continue': 'Continue',
+      'rematch': 'Rematch',
       'back': 'Back',
       'cancel': 'Cancel',
       'save': 'Save',
