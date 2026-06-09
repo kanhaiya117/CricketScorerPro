@@ -14,9 +14,7 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: brightness == Brightness.light
-          ? const Color(0xFFF4F7F5)
-          : null,
+      scaffoldBackgroundColor: Colors.transparent,
       cardTheme: CardThemeData(
         elevation: 0,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

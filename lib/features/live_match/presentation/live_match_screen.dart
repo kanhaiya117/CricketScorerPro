@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cricket_scorer_pro/core/ads/innings_banner_popup.dart';
 import 'package:cricket_scorer_pro/features/live_match/engine/match_insights.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
@@ -12,11 +13,51 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vibration/vibration.dart';
 
-class LiveMatchScreen extends ConsumerWidget {
+class LiveMatchScreen extends ConsumerStatefulWidget {
   const LiveMatchScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LiveMatchScreen> createState() => _LiveMatchScreenState();
+}
+
+class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
+  String? _popupToken;
+  Timer? _popupRetry;
+
+  void _scheduleInningsPopup(MatchModel match) {
+    if (match.status != MatchStatus.live) return;
+    final token = '${match.id}:${match.innings}';
+    if (_popupToken == token) return;
+    _popupRetry?.cancel();
+    _popupToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final result = await InningsBannerPopup.showIfNeeded(
+        context,
+        matchId: match.id,
+        innings: match.innings,
+        audience: 'scorer',
+      );
+      if (result == BannerPopupResult.unavailable && mounted) {
+        _popupRetry?.cancel();
+        _popupRetry = Timer(const Duration(seconds: 30), () {
+          if (!mounted) return;
+          _popupToken = null;
+          final current = ref.read(currentMatchProvider);
+          if (current != null) _scheduleInningsPopup(current);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _popupRetry?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final match = ref.watch(currentMatchProvider);
     if (match == null) {
       return Scaffold(
@@ -27,6 +68,7 @@ class LiveMatchScreen extends ConsumerWidget {
     if (match.status == MatchStatus.inningsBreak) {
       return _InningsBreakScreen(match: match);
     }
+    _scheduleInningsPopup(match);
     final striker = _player(match.battingTeam, match.strikerId);
     final nonStriker = _player(match.battingTeam, match.nonStrikerId);
     final bowler = _player(match.bowlingTeam, match.currentBowlerId);

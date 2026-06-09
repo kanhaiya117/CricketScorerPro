@@ -3,7 +3,6 @@ import 'package:cricket_scorer_pro/core/localization/locale_provider.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/main.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
-import 'package:cricket_scorer_pro/shared/widgets/app_background.dart';
 import 'package:cricket_scorer_pro/shared/widgets/copyable_match_code.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
@@ -75,214 +74,208 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? currentMatch
         : null;
     return Scaffold(
-      body: AppBackground(
-        child: SafeArea(
-          child: ResponsiveContent(
-            child: RefreshIndicator(
-              onRefresh: () => ref.read(syncProvider.notifier).sync(),
-              child: ListView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: MediaQuery.sizeOf(context).width < 380 ? 14 : 20,
-                  vertical: 18,
-                ),
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primary,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: const Icon(
-                          Icons.sports_cricket,
-                          color: Colors.white,
-                          size: 30,
-                        ),
+      body: SafeArea(
+        child: ResponsiveContent(
+          child: RefreshIndicator(
+            onRefresh: () => ref.read(syncProvider.notifier).sync(),
+            child: ListView(
+              padding: EdgeInsets.symmetric(
+                horizontal: MediaQuery.sizeOf(context).width < 380 ? 14 : 20,
+                vertical: 18,
+              ),
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.primary,
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                'Cric Score Pro',
-                                style: TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800,
-                                ),
+                      child: const Icon(
+                        Icons.sports_cricket,
+                        color: Colors.white,
+                        size: 30,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Cric Score Pro',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
-                            Text(context.tr('tagline')),
-                          ],
-                        ),
+                          ),
+                          Text(context.tr('tagline')),
+                        ],
                       ),
-                      PopupMenuButton<String>(
-                        tooltip: context.tr('language'),
-                        initialValue: locale.languageCode,
-                        icon: const Icon(Icons.translate),
-                        onSelected: (code) => ref
-                            .read(localeProvider.notifier)
-                            .setLocale(Locale(code)),
-                        itemBuilder: (_) => AppLocalizations
-                            .languageNames
-                            .entries
-                            .map(
-                              (entry) => PopupMenuItem(
-                                value: entry.key,
-                                child: Text(entry.value),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                      IconButton(
-                        tooltip: 'Theme',
-                        onPressed: () =>
-                            ref.read(themeModeProvider.notifier).toggle(),
-                        icon: const Icon(Icons.brightness_6_outlined),
-                      ),
-                    ],
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: context.tr('language'),
+                      initialValue: locale.languageCode,
+                      icon: const Icon(Icons.translate),
+                      onSelected: (code) => ref
+                          .read(localeProvider.notifier)
+                          .setLocale(Locale(code)),
+                      itemBuilder: (_) => AppLocalizations.languageNames.entries
+                          .map(
+                            (entry) => PopupMenuItem(
+                              value: entry.key,
+                              child: Text(entry.value),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    IconButton(
+                      tooltip: 'Theme',
+                      onPressed: () =>
+                          ref.read(themeModeProvider.notifier).toggle(),
+                      icon: const Icon(Icons.brightness_6_outlined),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                if (activeMatch != null) ...[
+                  _ResumeCard(match: activeMatch),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/history'),
+                    icon: const Icon(Icons.history),
+                    label: Text(context.tr('matchHistory')),
                   ),
-                  const SizedBox(height: 24),
-                  if (activeMatch != null) ...[
-                    _ResumeCard(match: activeMatch),
-                    const SizedBox(height: 16),
+                ] else ...[
+                  _ModeCard(
+                    icon: Icons.edit_note,
+                    title: context.tr('startMatch'),
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () => context.push('/setup'),
+                            icon: const Icon(Icons.add_circle_outline),
+                            label: Text(context.tr('startMatch')),
+                          ),
+                        ),
+                        if (lastCompleted != null) ...[
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: () =>
+                                  context.push('/setup', extra: lastCompleted),
+                              icon: const Icon(Icons.replay),
+                              label: Text(context.tr('rematch')),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _ModeCard(
+                    icon: Icons.live_tv,
+                    title: context.tr('watchLive'),
+                    child: Column(
+                      children: [
+                        TextField(
+                          controller: _codeController,
+                          textCapitalization: TextCapitalization.characters,
+                          maxLength: 6,
+                          onSubmitted: (_) => _findMatch(),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            labelText: context.tr('matchCode'),
+                            prefixIcon: const Icon(Icons.tag),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: _finding ? null : _findMatch,
+                            icon: _finding
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.search),
+                            label: Text(context.tr('find')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (matches.isNotEmpty) ...[
+                    const SizedBox(height: 10),
                     OutlinedButton.icon(
                       onPressed: () => context.push('/history'),
                       icon: const Icon(Icons.history),
                       label: Text(context.tr('matchHistory')),
                     ),
-                  ] else ...[
-                    _ModeCard(
-                      icon: Icons.edit_note,
-                      title: context.tr('startMatch'),
-                      child: Column(
-                        children: [
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: () => context.push('/setup'),
-                              icon: const Icon(Icons.add_circle_outline),
-                              label: Text(context.tr('startMatch')),
-                            ),
-                          ),
-                          if (lastCompleted != null) ...[
-                            const SizedBox(height: 10),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: () => context.push(
-                                  '/setup',
-                                  extra: lastCompleted,
-                                ),
-                                icon: const Icon(Icons.replay),
-                                label: Text(context.tr('rematch')),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _ModeCard(
-                      icon: Icons.live_tv,
-                      title: context.tr('watchLive'),
-                      child: Column(
-                        children: [
-                          TextField(
-                            controller: _codeController,
-                            textCapitalization: TextCapitalization.characters,
-                            maxLength: 6,
-                            onSubmitted: (_) => _findMatch(),
-                            decoration: InputDecoration(
-                              counterText: '',
-                              labelText: context.tr('matchCode'),
-                              prefixIcon: const Icon(Icons.tag),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _finding ? null : _findMatch,
-                              icon: _finding
-                                  ? const SizedBox.square(
-                                      dimension: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : const Icon(Icons.search),
-                              label: Text(context.tr('find')),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (matches.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        onPressed: () => context.push('/history'),
-                        icon: const Icon(Icons.history),
-                        label: Text(context.tr('matchHistory')),
-                      ),
-                    ],
                   ],
-                  const SizedBox(height: 22),
-                  Text(
-                    context.tr('cloudBackup'),
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          Icon(
-                            sync.isOnline ? Icons.cloud_done : Icons.cloud_off,
-                            color: sync.isOnline ? Colors.green : Colors.orange,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  sync.isSyncing
-                                      ? context.tr('syncing')
-                                      : sync.isOnline
-                                      ? context.tr('online')
-                                      : context.tr('offline'),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                Text(
-                                  sync.lastSynced == null
-                                      ? 'No cloud sync this session'
-                                      : 'Last synced ${DateFormat.jm().format(sync.lastSynced!)}',
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: sync.isOnline
-                                ? () => ref.read(syncProvider.notifier).sync()
-                                : null,
-                            icon: const Icon(Icons.sync),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
-              ),
+                const SizedBox(height: 22),
+                Text(
+                  context.tr('cloudBackup'),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          sync.isOnline ? Icons.cloud_done : Icons.cloud_off,
+                          color: sync.isOnline ? Colors.green : Colors.orange,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                sync.isSyncing
+                                    ? context.tr('syncing')
+                                    : sync.isOnline
+                                    ? context.tr('online')
+                                    : context.tr('offline'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                sync.lastSynced == null
+                                    ? 'No cloud sync this session'
+                                    : 'Last synced ${DateFormat.jm().format(sync.lastSynced!)}',
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: sync.isOnline
+                              ? () => ref.read(syncProvider.notifier).sync()
+                              : null,
+                          icon: const Icon(Icons.sync),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
