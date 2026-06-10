@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:cricket_scorer_pro/core/ads/innings_banner_popup.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
+import 'package:cricket_scorer_pro/shared/widgets/copyable_match_code.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +26,33 @@ class _SpectatorScoreboardScreenState
   String? _lastBallId;
   OverlayEntry? _celebration;
   Timer? _celebrationTimer;
+  Timer? _popupRetry;
+  String? _popupToken;
+
+  void _scheduleInningsPopup(MatchModel match) {
+    if (match.status != MatchStatus.live) return;
+    final token = '${match.id}:${match.innings}';
+    if (_popupToken == token) return;
+    _popupRetry?.cancel();
+    _popupToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final result = await InningsBannerPopup.showIfNeeded(
+        context,
+        matchId: match.id,
+        innings: match.innings,
+        audience: 'viewer',
+      );
+      if (result == BannerPopupResult.unavailable && mounted) {
+        _popupRetry?.cancel();
+        _popupRetry = Timer(const Duration(seconds: 30), () {
+          if (!mounted) return;
+          _popupToken = null;
+          _scheduleInningsPopup(match);
+        });
+      }
+    });
+  }
 
   void _handleUpdate(MatchModel match) {
     if (match.ballHistory.isEmpty) return;
@@ -83,6 +112,7 @@ class _SpectatorScoreboardScreenState
   @override
   void dispose() {
     _celebrationTimer?.cancel();
+    _popupRetry?.cancel();
     _celebration?.remove();
     super.dispose();
   }
@@ -107,6 +137,7 @@ class _SpectatorScoreboardScreenState
                 if (match == null) {
                   return Center(child: Text(context.tr('invalidCode')));
                 }
+                _scheduleInningsPopup(match);
                 _handleUpdate(match);
                 return ResponsiveContent(
                   child: ListView(
@@ -138,7 +169,11 @@ class _SpectatorScoreboardScreenState
                                   'CRR ${match.currentRunRate.toStringAsFixed(2)}',
                                 ),
                                 const SizedBox(height: 8),
-                                Text('Code: ${match.publicCode}'),
+                                CopyableMatchCode(
+                                  code: match.publicCode,
+                                  compact: true,
+                                  onPrimary: true,
+                                ),
                               ],
                             ),
                           ),

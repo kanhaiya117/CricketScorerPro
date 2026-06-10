@@ -1,3 +1,4 @@
+import 'package:cricket_scorer_pro/core/ads/ad_service.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/core/services/pdf_scorecard_service.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
@@ -8,11 +9,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
-class MatchSummaryScreen extends ConsumerWidget {
+class MatchSummaryScreen extends ConsumerStatefulWidget {
   const MatchSummaryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MatchSummaryScreen> createState() => _MatchSummaryScreenState();
+}
+
+class _MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen> {
+  bool _sharing = false;
+
+  Future<void> _share(MatchModel match) async {
+    if (_sharing) return;
+    setState(() => _sharing = true);
+    try {
+      await AdService.showExportInterstitialOnce(match.id);
+      final file = await const PdfScorecardService().generate(match);
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'application/pdf')],
+          subject: 'Cric Score Pro Scorecard',
+          text:
+              '${match.teamA.name} vs ${match.teamB.name} '
+              '(${match.publicCode})',
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final match = ref.watch(currentMatchProvider);
     if (match == null) {
       return Scaffold(
@@ -44,19 +72,13 @@ class MatchSummaryScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: context.tr('scorecard'),
-            onPressed: () async {
-              final file = await const PdfScorecardService().generate(match);
-              await SharePlus.instance.share(
-                ShareParams(
-                  files: [XFile(file.path, mimeType: 'application/pdf')],
-                  subject: 'Cric Score Pro Scorecard',
-                  text:
-                      '${match.teamA.name} vs ${match.teamB.name} '
-                      '(${match.publicCode})',
-                ),
-              );
-            },
-            icon: const Icon(Icons.share_outlined),
+            onPressed: _sharing ? null : () => _share(match),
+            icon: _sharing
+                ? const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.share_outlined),
           ),
         ],
       ),
@@ -134,9 +156,23 @@ class MatchSummaryScreen extends ConsumerWidget {
             ],
             const SizedBox(height: 16),
             if (match.status == MatchStatus.completed)
-              FilledButton(
-                onPressed: () => context.go('/'),
-                child: Text(context.tr('back')),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push('/setup', extra: match),
+                      icon: const Icon(Icons.replay),
+                      label: Text(context.tr('rematch')),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => context.go('/'),
+                      child: Text(context.tr('back')),
+                    ),
+                  ),
+                ],
               ),
           ],
         ),

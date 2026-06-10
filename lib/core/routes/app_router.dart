@@ -4,6 +4,7 @@ import 'package:cricket_scorer_pro/features/match_history/presentation/match_his
 import 'package:cricket_scorer_pro/features/match_setup/presentation/match_setup_screen.dart';
 import 'package:cricket_scorer_pro/features/match_summary/presentation/match_summary_screen.dart';
 import 'package:cricket_scorer_pro/features/spectator/presentation/spectator_scoreboard_screen.dart';
+import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -12,7 +13,8 @@ final appRouter = GoRouter(
     GoRoute(path: '/', builder: (_, _) => const DashboardScreen()),
     GoRoute(
       path: '/setup',
-      pageBuilder: (_, state) => _page(state, const MatchSetupScreen()),
+      pageBuilder: (_, state) =>
+          _page(state, MatchSetupScreen(template: state.extra as MatchModel?)),
     ),
     GoRoute(
       path: '/live',

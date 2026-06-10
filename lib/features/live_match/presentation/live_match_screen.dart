@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:cricket_scorer_pro/core/ads/innings_banner_popup.dart';
 import 'package:cricket_scorer_pro/features/live_match/engine/match_insights.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
+import 'package:cricket_scorer_pro/shared/widgets/copyable_match_code.dart';
 import 'package:cricket_scorer_pro/shared/widgets/responsive_content.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,11 +13,51 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:vibration/vibration.dart';
 
-class LiveMatchScreen extends ConsumerWidget {
+class LiveMatchScreen extends ConsumerStatefulWidget {
   const LiveMatchScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LiveMatchScreen> createState() => _LiveMatchScreenState();
+}
+
+class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
+  String? _popupToken;
+  Timer? _popupRetry;
+
+  void _scheduleInningsPopup(MatchModel match) {
+    if (match.status != MatchStatus.live) return;
+    final token = '${match.id}:${match.innings}';
+    if (_popupToken == token) return;
+    _popupRetry?.cancel();
+    _popupToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final result = await InningsBannerPopup.showIfNeeded(
+        context,
+        matchId: match.id,
+        innings: match.innings,
+        audience: 'scorer',
+      );
+      if (result == BannerPopupResult.unavailable && mounted) {
+        _popupRetry?.cancel();
+        _popupRetry = Timer(const Duration(seconds: 30), () {
+          if (!mounted) return;
+          _popupToken = null;
+          final current = ref.read(currentMatchProvider);
+          if (current != null) _scheduleInningsPopup(current);
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _popupRetry?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final match = ref.watch(currentMatchProvider);
     if (match == null) {
       return Scaffold(
@@ -26,6 +68,7 @@ class LiveMatchScreen extends ConsumerWidget {
     if (match.status == MatchStatus.inningsBreak) {
       return _InningsBreakScreen(match: match);
     }
+    _scheduleInningsPopup(match);
     final striker = _player(match.battingTeam, match.strikerId);
     final nonStriker = _player(match.battingTeam, match.nonStrikerId);
     final bowler = _player(match.bowlingTeam, match.currentBowlerId);
@@ -42,11 +85,7 @@ class LiveMatchScreen extends ConsumerWidget {
             Center(
               child: Padding(
                 padding: const EdgeInsets.only(right: 4),
-                child: Chip(
-                  avatar: const Icon(Icons.visibility, size: 17),
-                  label: Text(match.publicCode),
-                  visualDensity: VisualDensity.compact,
-                ),
+                child: CopyableMatchCode(code: match.publicCode, compact: true),
               ),
             ),
             IconButton(
@@ -245,14 +284,13 @@ class LiveMatchScreen extends ConsumerWidget {
         .score(runs: runs, ballType: type);
     if (!context.mounted || updated == null) return;
     if (runs == 4 || runs == 6) {
-      unawaited(
-        _showCelebration(
-          context,
-          label: runs == 4 ? 'FOUR!' : 'SIX!',
-          icon: runs == 4 ? Icons.looks_4 : Icons.looks_6,
-          color: runs == 4 ? Colors.blue : Colors.purple,
-        ),
+      await _showCelebration(
+        context,
+        label: runs == 4 ? 'FOUR!' : 'SIX!',
+        icon: runs == 4 ? Icons.looks_4 : Icons.looks_6,
+        color: runs == 4 ? Colors.blue : Colors.purple,
       );
+      if (!context.mounted) return;
     }
     if (updated.status == MatchStatus.completed) {
       context.go('/summary');
@@ -420,17 +458,21 @@ class LiveMatchScreen extends ConsumerWidget {
         );
     await _vibrate(180);
     if (context.mounted && updated != null) {
-      unawaited(
-        _showCelebration(
-          context,
-          label: 'WICKET!',
-          icon: Icons.sports_cricket,
-          color: Colors.red,
-        ),
+      await _showCelebration(
+        context,
+        label: 'WICKET!',
+        icon: Icons.sports_cricket,
+        color: Colors.red,
       );
     }
-    if (context.mounted && updated?.status == MatchStatus.completed) {
+    if (!context.mounted || updated == null) return;
+    if (updated.status == MatchStatus.completed) {
       context.go('/summary');
+    } else if (updated.status == MatchStatus.live &&
+        updated.overComplete &&
+        updated.legalBalls != match.legalBalls &&
+        updated.legalBalls % 6 == 0) {
+      await _bowlerSheet(context, ref, updated, overComplete: true);
     }
   }
 

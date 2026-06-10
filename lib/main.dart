@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cricket_scorer_pro/core/ads/ad_service.dart';
 import 'package:cricket_scorer_pro/core/routes/app_router.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/core/localization/locale_provider.dart';
@@ -7,6 +10,7 @@ import 'package:cricket_scorer_pro/core/storage/hive_match_storage.dart';
 import 'package:cricket_scorer_pro/core/theme/app_theme.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/features/language/presentation/language_selection_screen.dart';
+import 'package:cricket_scorer_pro/shared/widgets/app_background.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +38,7 @@ Future<void> main() async {
       child: const CricketScorerApp(),
     ),
   );
+  unawaited(AdService.initialize());
 }
 
 final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
@@ -66,14 +71,26 @@ class CricketScorerApp extends ConsumerWidget {
       GlobalCupertinoLocalizations.delegate,
     ],
     builder: (context, child) => _FirstLaunchGate(
-      child: Column(
-        children: [
-          Expanded(child: child ?? const SizedBox.shrink()),
-          const AppFooter(),
-        ],
-      ),
+      child: _AppChrome(child: child ?? const SizedBox.shrink()),
     ),
     routerConfig: appRouter,
+  );
+}
+
+class _AppChrome extends StatelessWidget {
+  const _AppChrome({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AppBackground(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(child: child),
+        const AppFooter(),
+      ],
+    ),
   );
 }
 
