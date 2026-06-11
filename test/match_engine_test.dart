@@ -171,6 +171,49 @@ void main() {
     expect(() => engine.changeBowler(result, 'p1'), throwsArgumentError);
   });
 
+  test('bowler can change multiple times before next over starts', () {
+    var result = match();
+    for (var i = 0; i < 6; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+
+    result = engine.changeBowler(result, 'p2');
+    result = engine.changeBowler(result, 'p2');
+
+    expect(result.currentBowlerId, 'p2');
+    expect(result.previousBowlerId, 'p1');
+  });
+
+  test('bowler cannot change after next over starts', () {
+    var result = match();
+    for (var i = 0; i < 6; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+    result = engine.changeBowler(result, 'p2');
+    result = engine.recordBall(result, runs: 0);
+
+    expect(() => engine.changeBowler(result, 'p1'), throwsStateError);
+  });
+
+  test('undo across over boundary restores the ball bowler', () {
+    var result = match().copyWith(totalOvers: 3);
+    for (var i = 0; i < 6; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+    result = engine.changeBowler(result, 'p2');
+    result = engine.recordBall(result, runs: 1);
+
+    result = engine.undo(result);
+    expect(result.overs, '1.0');
+    expect(result.currentBowlerId, 'p2');
+    expect(result.overComplete, isTrue);
+
+    result = engine.undo(result);
+    expect(result.overs, '0.5');
+    expect(result.currentBowlerId, 'p1');
+    expect(result.overComplete, isFalse);
+  });
+
   test('older saved match JSON loads without new innings fields', () {
     final json = match().toJson()
       ..remove('firstInningsBattingTeamId')

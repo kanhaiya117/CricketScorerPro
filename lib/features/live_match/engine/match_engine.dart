@@ -208,11 +208,17 @@ class MatchEngine {
 
   MatchModel changeBowler(MatchModel match, String bowlerId) {
     _validateBowler(match.bowlingTeam, bowlerId);
-    if (bowlerId == match.currentBowlerId && match.overComplete) {
+    if (!match.overComplete) {
+      throw StateError('The bowler can only change after a completed over.');
+    }
+    final previousOverBowlerId = match.ballHistory.reversed
+        .firstWhere((ball) => ball.innings == match.innings && ball.isLegalBall)
+        .bowlerId;
+    if (bowlerId == previousOverBowlerId) {
       throw ArgumentError('The previous-over bowler cannot bowl again.');
     }
     return match.copyWith(
-      previousBowlerId: match.currentBowlerId,
+      previousBowlerId: previousOverBowlerId,
       currentBowlerId: bowlerId,
       updatedAt: DateTime.now(),
       syncStatus: SyncStatus.pending,
@@ -293,15 +299,31 @@ class MatchEngine {
       extras: batting.extras - ball.extraRuns,
     );
     bowling = bowling.copyWith(players: bowlingPlayers);
+    final remainingHistory = match.ballHistory.sublist(
+      0,
+      match.ballHistory.length - 1,
+    );
+    final legalBalls = match.legalBalls - (ball.isLegalBall ? 1 : 0);
+    final atOverBoundary = legalBalls > 0 && legalBalls % 6 == 0;
+    final previousOverBowlerId = atOverBoundary
+        ? remainingHistory.reversed
+              .firstWhere(
+                (item) => item.innings == match.innings && item.isLegalBall,
+              )
+              .bowlerId
+        : null;
     return match.copyWith(
       teamA: match.teamA.id == batting.id ? batting : bowling,
       teamB: match.teamB.id == batting.id ? batting : bowling,
       strikerId: ball.previousStrikerId ?? ball.batsmanId,
       nonStrikerId: ball.previousNonStrikerId ?? match.nonStrikerId,
+      currentBowlerId: ball.bowlerId,
+      previousBowlerId: previousOverBowlerId,
+      clearPreviousBowler: !atOverBoundary,
       currentRuns: match.currentRuns - ball.totalRuns,
       currentWickets: match.currentWickets - (ball.isWicket ? 1 : 0),
-      legalBalls: match.legalBalls - (ball.isLegalBall ? 1 : 0),
-      ballHistory: match.ballHistory.sublist(0, match.ballHistory.length - 1),
+      legalBalls: legalBalls,
+      ballHistory: remainingHistory,
       status: MatchStatus.live,
       clearResult: true,
       updatedAt: DateTime.now(),

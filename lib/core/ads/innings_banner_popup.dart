@@ -44,42 +44,45 @@ abstract final class InningsBannerPopup {
       await showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => Dialog(
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity,
-                color: Theme.of(dialogContext).colorScheme.primaryContainer,
-                padding: const EdgeInsets.fromLTRB(16, 8, 6, 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.sports_cricket),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        innings == 1 ? 'First Innings' : 'Second Innings',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+        builder: (dialogContext) => PopScope(
+          canPop: false,
+          child: Dialog(
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  color: Theme.of(dialogContext).colorScheme.primaryContainer,
+                  padding: const EdgeInsets.fromLTRB(16, 8, 6, 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sports_cricket),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          innings == 1 ? 'First Innings' : 'Second Innings',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(dialogContext),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ],
+                      IconButton.filledTonal(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              ColoredBox(
-                color: Theme.of(dialogContext).colorScheme.surface,
-                child: SizedBox(
-                  width: banner.size.width.toDouble(),
-                  height: banner.size.height.toDouble(),
-                  child: AdWidget(ad: banner),
+                ColoredBox(
+                  color: Theme.of(dialogContext).colorScheme.surface,
+                  child: SizedBox(
+                    width: banner.size.width.toDouble(),
+                    height: banner.size.height.toDouble(),
+                    child: AdWidget(ad: banner),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       );

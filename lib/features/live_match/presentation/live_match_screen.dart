@@ -23,6 +23,8 @@ class LiveMatchScreen extends ConsumerStatefulWidget {
 class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
   String? _popupToken;
   Timer? _popupRetry;
+  Completer<void>? _popupCompletion;
+  int _undoCount = 0;
 
   void _scheduleInningsPopup(MatchModel match) {
     if (match.status != MatchStatus.live) return;
@@ -30,25 +32,40 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
     if (_popupToken == token) return;
     _popupRetry?.cancel();
     _popupToken = token;
+    final completion = Completer<void>();
+    _popupCompletion = completion;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      final result = await InningsBannerPopup.showIfNeeded(
-        context,
-        matchId: match.id,
-        innings: match.innings,
-        audience: 'scorer',
-      );
-      if (result == BannerPopupResult.unavailable && mounted) {
-        _popupRetry?.cancel();
-        _popupRetry = Timer(const Duration(seconds: 30), () {
-          if (!mounted) return;
-          _popupToken = null;
-          final current = ref.read(currentMatchProvider);
-          if (current != null) _scheduleInningsPopup(current);
-        });
+      try {
+        if (!mounted) return;
+        final result = await InningsBannerPopup.showIfNeeded(
+          context,
+          matchId: match.id,
+          innings: match.innings,
+          audience: 'scorer',
+        );
+        if (result == BannerPopupResult.unavailable && mounted) {
+          _popupRetry?.cancel();
+          _popupRetry = Timer(const Duration(seconds: 30), () {
+            if (!mounted) return;
+            _popupToken = null;
+            final current = ref.read(currentMatchProvider);
+            if (current != null) _scheduleInningsPopup(current);
+          });
+        }
+      } finally {
+        if (!completion.isCompleted) completion.complete();
       }
     });
   }
+
+  Future<void> _waitForInningsPopup(MatchModel match) async {
+    _scheduleInningsPopup(match);
+    final completion = _popupCompletion;
+    if (completion != null) await completion.future;
+  }
+
+  bool _canChangeBowler(MatchModel match) =>
+      match.status == MatchStatus.live && match.overComplete;
 
   @override
   void dispose() {
@@ -198,7 +215,15 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
                     .map(
                       (run) => FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.green.shade700,
+                          backgroundColor: _runButtonColor(run),
+                          foregroundColor: Colors.white,
+                          elevation: run == 4 || run == 6 ? 3 : 1,
+                          shadowColor: _runButtonColor(
+                            run,
+                          ).withValues(alpha: 0.35),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
                         ),
                         onPressed: () => _score(context, ref, match, runs: run),
                         child: Text(
@@ -219,6 +244,11 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () => _wicketSheet(context, ref, match),
                       icon: const Icon(Icons.close),
@@ -229,35 +259,61 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
                   Expanded(
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
-                        backgroundColor: Colors.orange,
+                        backgroundColor: Colors.orange.shade700,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
                       onPressed: () => _extraSheet(context, ref, match),
-                      icon: const Icon(Icons.add),
+                      icon: const Icon(Icons.add_circle_outline),
                       label: Text(context.tr('extra')),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              Wrap(
-                alignment: WrapAlignment.spaceEvenly,
+              Row(
                 children: [
-                  TextButton.icon(
-                    onPressed: match.ballHistory.isEmpty
-                        ? null
-                        : () => ref.read(currentMatchProvider.notifier).undo(),
-                    icon: const Icon(Icons.undo),
-                    label: Text(context.tr('undo')),
+                  Expanded(
+                    child: _ScorerActionButton(
+                      icon: Icons.undo_rounded,
+                      label: context.tr('undo'),
+                      onPressed:
+                          match.ballHistory
+                                  .where(
+                                    (ball) => ball.innings == match.innings,
+                                  )
+                                  .isEmpty ||
+                              _undoCount >= 2
+                          ? null
+                          : () => _undo(ref),
+                    ),
                   ),
-                  TextButton.icon(
-                    onPressed: () => _bowlerSheet(context, ref, match),
-                    icon: const Icon(Icons.swap_horiz),
-                    label: Text(context.tr('changeBowler')),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ScorerActionButton(
+                      icon: Icons.sports_baseball_outlined,
+                      label: context.tr('changeBowler'),
+                      onPressed: _canChangeBowler(match)
+                          ? () => _bowlerSheet(
+                              context,
+                              ref,
+                              match,
+                              overComplete: true,
+                            )
+                          : null,
+                    ),
                   ),
-                  TextButton.icon(
-                    onPressed: () => _endMatch(context, ref),
-                    icon: const Icon(Icons.stop_circle_outlined),
-                    label: Text(context.tr('end')),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _ScorerActionButton(
+                      icon: Icons.stop_circle_outlined,
+                      label: context.tr('end'),
+                      color: Theme.of(context).colorScheme.error,
+                      onPressed: () => _endMatch(context, ref),
+                    ),
                   ),
                 ],
               ),
@@ -283,6 +339,11 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
         .read(currentMatchProvider.notifier)
         .score(runs: runs, ballType: type);
     if (!context.mounted || updated == null) return;
+    if (_undoCount != 0) {
+      setState(() => _undoCount = 0);
+    }
+    await _waitForInningsPopup(updated);
+    if (!context.mounted) return;
     if (runs == 4 || runs == 6) {
       await _showCelebration(
         context,
@@ -456,7 +517,13 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
           nextBatsmanId: next,
           fielderId: fielderId,
         );
+    if (updated != null && _undoCount != 0 && mounted) {
+      setState(() => _undoCount = 0);
+    }
     await _vibrate(180);
+    if (updated != null && context.mounted) {
+      await _waitForInningsPopup(updated);
+    }
     if (context.mounted && updated != null) {
       await _showCelebration(
         context,
@@ -484,6 +551,13 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
     }
   }
 
+  Future<void> _undo(WidgetRef ref) async {
+    if (_undoCount >= 2) return;
+    await ref.read(currentMatchProvider.notifier).undo();
+    if (!mounted) return;
+    setState(() => _undoCount++);
+  }
+
   Future<void> _showCelebration(
     BuildContext context, {
     required String label,
@@ -491,7 +565,7 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
     required Color color,
   }) async {
     unawaited(
-      Future<void>.delayed(const Duration(milliseconds: 950)).then((_) {
+      Future<void>.delayed(const Duration(milliseconds: 650)).then((_) {
         if (context.mounted &&
             Navigator.of(context, rootNavigator: true).canPop()) {
           Navigator.of(context, rootNavigator: true).pop();
@@ -502,7 +576,7 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
       context: context,
       barrierDismissible: false,
       barrierColor: Colors.black45,
-      transitionDuration: const Duration(milliseconds: 280),
+      transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (_, _, _) => Center(
         child: Material(
           color: Colors.transparent,
@@ -556,22 +630,38 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
   }) async {
     final id = await showModalBottomSheet<String>(
       context: context,
-      isDismissible: !overComplete,
-      enableDrag: !overComplete,
+      isDismissible: false,
+      enableDrag: false,
       builder: (context) => PopScope(
-        canPop: !overComplete,
+        canPop: false,
         child: SafeArea(
           child: SizedBox(
             height: MediaQuery.sizeOf(context).height * .76,
             child: Column(
               children: [
                 ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
+                    child: Icon(
+                      Icons.sports_baseball,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    ),
+                  ),
                   title: Text(
                     overComplete
                         ? context.tr('overComplete')
                         : context.tr('changeBowler'),
                   ),
                   subtitle: Text(context.tr('selectNewBowler')),
+                  trailing: overComplete
+                      ? null
+                      : IconButton.filledTonal(
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close),
+                        ),
                 ),
                 const Divider(height: 1),
                 Expanded(
@@ -580,7 +670,9 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
                     itemCount: match.bowlingTeam.players.length,
                     itemBuilder: (context, index) {
                       final player = match.bowlingTeam.players[index];
-                      final unavailable = player.id == match.currentBowlerId;
+                      final unavailable =
+                          player.id ==
+                          (match.previousBowlerId ?? match.currentBowlerId);
                       return Card(
                         margin: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -651,6 +743,75 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
       await ref.read(currentMatchProvider.notifier).endMatch();
       if (context.mounted) context.go('/summary');
     }
+  }
+
+  Color _runButtonColor(int run) {
+    return switch (run) {
+      0 => const Color(0xFF546E7A),
+      1 => const Color(0xFF277A62),
+      2 => const Color(0xFF19766F),
+      3 => const Color(0xFF166E80),
+      4 => const Color(0xFF1769AA),
+      6 => const Color(0xFF7B4EA3),
+      _ => const Color(0xFF277A62),
+    };
+  }
+}
+
+class _ScorerActionButton extends StatelessWidget {
+  const _ScorerActionButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonColor = color ?? Theme.of(context).colorScheme.primary;
+    final containerColor = color == null
+        ? Theme.of(context).colorScheme.primaryContainer
+        : Theme.of(context).colorScheme.errorContainer;
+    final contentColor = color == null
+        ? Theme.of(context).colorScheme.onPrimaryContainer
+        : Theme.of(context).colorScheme.onErrorContainer;
+    return FilledButton(
+      style: FilledButton.styleFrom(
+        backgroundColor: containerColor,
+        foregroundColor: contentColor,
+        disabledBackgroundColor: Theme.of(
+          context,
+        ).colorScheme.surfaceContainerHighest,
+        disabledForegroundColor: Theme.of(
+          context,
+        ).colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
+        minimumSize: const Size.fromHeight(58),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        elevation: 1,
+        shadowColor: buttonColor.withValues(alpha: 0.25),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      onPressed: onPressed,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 21),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
   }
 }
 
