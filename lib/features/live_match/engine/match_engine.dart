@@ -19,13 +19,24 @@ class MatchEngine {
     }
     if (runs < 0) throw ArgumentError.value(runs, 'runs');
 
-    final isLegal = ballType == BallType.normal;
-    final extraRuns = ballType == BallType.wide || ballType == BallType.noBall
-        ? 1
-        : 0;
+    final isLegal =
+        ballType == BallType.normal ||
+        ballType == BallType.bye ||
+        ballType == BallType.legBye;
+    final extraRuns = switch (ballType) {
+      BallType.wide => runs + 1,
+      BallType.noBall => 1,
+      BallType.bye || BallType.legBye => runs,
+      _ => 0,
+    };
     final batRuns = ballType == BallType.normal || ballType == BallType.noBall
         ? runs
         : 0;
+    final completedRuns = switch (ballType) {
+      BallType.wide => runs,
+      BallType.bye || BallType.legBye => extraRuns,
+      _ => batRuns,
+    };
     final dismissedId = wicketType == WicketType.none
         ? null
         : dismissedBatsmanId ?? match.strikerId;
@@ -76,7 +87,10 @@ class MatchEngine {
     bowlingPlayers[bowlerIndex] = bowlingPlayers[bowlerIndex].copyWith(
       ballsBowled: bowlingPlayers[bowlerIndex].ballsBowled + (isLegal ? 1 : 0),
       runsConceded:
-          bowlingPlayers[bowlerIndex].runsConceded + batRuns + extraRuns,
+          bowlingPlayers[bowlerIndex].runsConceded +
+          (ballType == BallType.bye || ballType == BallType.legBye
+              ? 0
+              : batRuns + extraRuns),
       wickets: bowlingPlayers[bowlerIndex].wickets + (bowlerWicket ? 1 : 0),
     );
 
@@ -108,7 +122,7 @@ class MatchEngine {
           strikerId = nextBatsmanId;
         }
       }
-    } else if (batRuns.isOdd) {
+    } else if (completedRuns.isOdd) {
       (strikerId, nonStrikerId) = (nonStrikerId, strikerId);
     }
 
@@ -124,6 +138,13 @@ class MatchEngine {
       totalRuns: runsTotal,
       wickets: wickets,
       extras: batting.extras + extraRuns,
+      wideExtras:
+          batting.wideExtras + (ballType == BallType.wide ? extraRuns : 0),
+      noBallExtras:
+          batting.noBallExtras + (ballType == BallType.noBall ? extraRuns : 0),
+      byeExtras: batting.byeExtras + (ballType == BallType.bye ? extraRuns : 0),
+      legByeExtras:
+          batting.legByeExtras + (ballType == BallType.legBye ? extraRuns : 0),
     );
     bowling = bowling.copyWith(players: bowlingPlayers);
     final inningsFinished =
@@ -182,6 +203,10 @@ class MatchEngine {
       totalRuns: 0,
       wickets: 0,
       extras: 0,
+      wideExtras: 0,
+      noBallExtras: 0,
+      byeExtras: 0,
+      legByeExtras: 0,
     );
     final bowling = match.battingTeam;
     _validateOpeners(batting, strikerId, nonStrikerId);
@@ -288,7 +313,7 @@ class MatchEngine {
           ball.wicketType == WicketType.lbw;
       bowlingPlayers[bowlerIndex] = bowler.copyWith(
         ballsBowled: bowler.ballsBowled - (ball.isLegalBall ? 1 : 0),
-        runsConceded: bowler.runsConceded - ball.totalRuns,
+        runsConceded: bowler.runsConceded - ball.bowlerRunsConceded,
         wickets: bowler.wickets - (credited ? 1 : 0),
       );
     }
@@ -297,6 +322,22 @@ class MatchEngine {
       totalRuns: batting.totalRuns - ball.totalRuns,
       wickets: batting.wickets - (ball.isWicket ? 1 : 0),
       extras: batting.extras - ball.extraRuns,
+      wideExtras:
+          (batting.wideExtras -
+                  (ball.ballType == BallType.wide ? ball.extraRuns : 0))
+              .clamp(0, batting.wideExtras),
+      noBallExtras:
+          (batting.noBallExtras -
+                  (ball.ballType == BallType.noBall ? ball.extraRuns : 0))
+              .clamp(0, batting.noBallExtras),
+      byeExtras:
+          (batting.byeExtras -
+                  (ball.ballType == BallType.bye ? ball.extraRuns : 0))
+              .clamp(0, batting.byeExtras),
+      legByeExtras:
+          (batting.legByeExtras -
+                  (ball.ballType == BallType.legBye ? ball.extraRuns : 0))
+              .clamp(0, batting.legByeExtras),
     );
     bowling = bowling.copyWith(players: bowlingPlayers);
     final remainingHistory = match.ballHistory.sublist(
@@ -326,6 +367,8 @@ class MatchEngine {
       ballHistory: remainingHistory,
       status: MatchStatus.live,
       clearResult: true,
+      clearFirstInnings:
+          match.innings == 1 && match.status == MatchStatus.inningsBreak,
       updatedAt: DateTime.now(),
       syncStatus: SyncStatus.pending,
     );

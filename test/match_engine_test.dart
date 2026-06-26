@@ -60,6 +60,83 @@ void main() {
     expect(result.bowlingTeam.players.first.runsConceded, 2);
   });
 
+  test('wide boundary adds five wides without a legal ball', () {
+    final result = engine.recordBall(match(), runs: 4, ballType: BallType.wide);
+
+    expect(result.currentRuns, 5);
+    expect(result.battingTeam.extras, 5);
+    expect(result.battingTeam.wideExtras, 5);
+    expect(result.battingTeam.players.first.runs, 0);
+    expect(result.legalBalls, 0);
+    expect(result.bowlingTeam.players.first.runsConceded, 5);
+  });
+
+  test('no ball boundary credits batter and no ball extra', () {
+    final result = engine.recordBall(
+      match(),
+      runs: 4,
+      ballType: BallType.noBall,
+    );
+
+    expect(result.currentRuns, 5);
+    expect(result.battingTeam.extras, 1);
+    expect(result.battingTeam.noBallExtras, 1);
+    expect(result.battingTeam.players.first.runs, 4);
+    expect(result.battingTeam.players.first.fours, 1);
+    expect(result.battingTeam.players.first.ballsFaced, 0);
+    expect(result.legalBalls, 0);
+    expect(result.bowlingTeam.players.first.runsConceded, 5);
+  });
+
+  test('leg bye adds extras and legal ball but does not charge bowler', () {
+    final result = engine.recordBall(
+      match(),
+      runs: 3,
+      ballType: BallType.legBye,
+    );
+
+    expect(result.currentRuns, 3);
+    expect(result.battingTeam.extras, 3);
+    expect(result.battingTeam.legByeExtras, 3);
+    expect(result.battingTeam.players.first.runs, 0);
+    expect(result.battingTeam.players.first.ballsFaced, 1);
+    expect(result.legalBalls, 1);
+    expect(result.strikerId, 'b2');
+    expect(result.bowlingTeam.players.first.runsConceded, 0);
+  });
+
+  test('undo restores advanced extra and player statistics', () {
+    final before = match();
+    var result = engine.recordBall(before, runs: 4, ballType: BallType.noBall);
+    result = engine.undo(result);
+
+    expect(result.currentRuns, before.currentRuns);
+    expect(result.legalBalls, before.legalBalls);
+    expect(result.strikerId, before.strikerId);
+    expect(result.battingTeam.extras, 0);
+    expect(result.battingTeam.noBallExtras, 0);
+    expect(result.battingTeam.players.first.runs, 0);
+    expect(result.battingTeam.players.first.fours, 0);
+    expect(result.bowlingTeam.players.first.runsConceded, 0);
+    expect(result.ballHistory, isEmpty);
+  });
+
+  test('undo first innings final ball clears innings snapshot and target', () {
+    var result = match().copyWith(totalOvers: 1);
+    for (var i = 0; i < 6; i++) {
+      result = engine.recordBall(result, runs: 0);
+    }
+    expect(result.status, MatchStatus.inningsBreak);
+    expect(result.target, 1);
+
+    result = engine.undo(result);
+
+    expect(result.status, MatchStatus.live);
+    expect(result.overs, '0.5');
+    expect(result.firstInningsRuns, isNull);
+    expect(result.target, isNull);
+  });
+
   test('odd run rotates strike', () {
     final result = engine.recordBall(match(), runs: 1);
 

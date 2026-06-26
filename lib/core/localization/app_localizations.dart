@@ -900,9 +900,207 @@ class AppLocalizations {
     },
   };
 
+  static const _setupMessages = <String, Map<String, String>>{
+    'en': {
+      'enterOvers': 'Enter overs',
+      'playersReady': '11 players ready',
+      'addTeamPlayersHint': 'Add the team name and confirm all 11 players.',
+      'setupTeamRequired':
+          'Open Add Players and save the 11-player team first.',
+      'setupStepRequired': 'Complete this step before continuing.',
+      'selectOpeningPlayersWarning':
+          'Select opening batters and opening bowler first.',
+      'selectOpeningBattersWarning': 'Select opening batters first.',
+      'selectOpeningBowlerWarning': 'Select opening bowler first.',
+      'micUnavailable': 'Microphone speech recognition is unavailable.',
+      'doneEditing': 'Done editing',
+      'editPlayer': 'Edit player',
+      'stopListening': 'Stop listening',
+      'speakName': 'Speak name',
+    },
+    'hi': {
+      'enterOvers': 'ओवर दर्ज करें',
+      'playersReady': '11 खिलाड़ी तैयार हैं',
+      'addTeamPlayersHint':
+          'टीम का नाम जोड़ें और सभी 11 खिलाड़ियों की पुष्टि करें.',
+      'setupTeamRequired':
+          'पहले Add Players खोलकर 11 खिलाड़ियों वाली टीम सेव करें.',
+      'setupStepRequired': 'आगे बढ़ने से पहले यह चरण पूरा करें.',
+      'selectOpeningPlayersWarning':
+          'पहले शुरुआती बल्लेबाज और शुरुआती गेंदबाज चुनें.',
+      'selectOpeningBattersWarning': 'पहले शुरुआती बल्लेबाज चुनें.',
+      'selectOpeningBowlerWarning': 'पहले शुरुआती गेंदबाज चुनें.',
+      'micUnavailable': 'माइक्रोफोन स्पीच रिकग्निशन उपलब्ध नहीं है.',
+      'doneEditing': 'एडिट पूरा',
+      'editPlayer': 'खिलाड़ी एडिट करें',
+      'stopListening': 'सुनना बंद करें',
+      'speakName': 'नाम बोलें',
+    },
+    'ta': {
+      'enterOvers': 'ஓவர்கள் உள்ளிடவும்',
+      'playersReady': '11 வீரர்கள் தயார்',
+      'addTeamPlayersHint':
+          'அணி பெயரை சேர்த்து 11 வீரர்களையும் உறுதி செய்யவும்.',
+      'setupTeamRequired':
+          'முதலில் Add Players திறந்து 11 வீரர் அணியை சேமிக்கவும்.',
+      'setupStepRequired': 'தொடர்வதற்கு முன் இந்த படியை முடிக்கவும்.',
+      'selectOpeningPlayersWarning':
+          'முதலில் தொடக்க பேட்டர்களையும் தொடக்க பந்துவீச்சாளரையும் தேர்வு செய்யவும்.',
+      'selectOpeningBattersWarning':
+          'முதலில் தொடக்க பேட்டர்களை தேர்வு செய்யவும்.',
+      'selectOpeningBowlerWarning':
+          'முதலில் தொடக்க பந்துவீச்சாளரை தேர்வு செய்யவும்.',
+      'micUnavailable': 'மைக்ரோஃபோன் பேச்சு அடையாளம் கிடைக்கவில்லை.',
+      'doneEditing': 'திருத்தம் முடிந்தது',
+      'editPlayer': 'வீரரை திருத்து',
+      'stopListening': 'கேட்பதை நிறுத்து',
+      'speakName': 'பெயரை பேசவும்',
+    },
+    'te': {
+      'enterOvers': 'ఓవర్లు నమోదు చేయండి',
+      'playersReady': '11 ఆటగాళ్లు సిద్ధంగా ఉన్నారు',
+      'addTeamPlayersHint': 'జట్టు పేరు జోడించి 11 ఆటగాళ్లను నిర్ధారించండి.',
+      'setupTeamRequired':
+          'ముందుగా Add Players తెరిచి 11 ఆటగాళ్ల జట్టును సేవ్ చేయండి.',
+      'setupStepRequired': 'కొనసాగించే ముందు ఈ దశను పూర్తి చేయండి.',
+      'selectOpeningPlayersWarning':
+          'ముందుగా ప్రారంభ బ్యాటర్లు మరియు ప్రారంభ బౌలర్‌ను ఎంచుకోండి.',
+      'selectOpeningBattersWarning': 'ముందుగా ప్రారంభ బ్యాటర్లను ఎంచుకోండి.',
+      'selectOpeningBowlerWarning': 'ముందుగా ప్రారంభ బౌలర్‌ను ఎంచుకోండి.',
+      'micUnavailable': 'మైక్రోఫోన్ స్పీచ్ గుర్తింపు అందుబాటులో లేదు.',
+      'doneEditing': 'ఎడిటింగ్ పూర్తైంది',
+      'editPlayer': 'ఆటగాడిని ఎడిట్ చేయండి',
+      'stopListening': 'వినడం ఆపండి',
+      'speakName': 'పేరు చెప్పండి',
+    },
+    'ml': {
+      'enterOvers': 'ഓവർ നൽകുക',
+      'playersReady': '11 കളിക്കാർ തയ്യാറാണ്',
+      'addTeamPlayersHint': 'ടീം പേര് ചേർത്ത് 11 കളിക്കാരെയും സ്ഥിരീകരിക്കുക.',
+      'setupTeamRequired':
+          'ആദ്യം Add Players തുറന്ന് 11 കളിക്കാരുള്ള ടീം സേവ് ചെയ്യുക.',
+      'setupStepRequired': 'തുടരുന്നതിന് മുമ്പ് ഈ ഘട്ടം പൂർത്തിയാക്കുക.',
+      'selectOpeningPlayersWarning':
+          'ആദ്യം തുടക്ക ബാറ്റർമാരെയും തുടക്ക ബൗളറെയും തിരഞ്ഞെടുക്കുക.',
+      'selectOpeningBattersWarning': 'ആദ്യം തുടക്ക ബാറ്റർമാരെ തിരഞ്ഞെടുക്കുക.',
+      'selectOpeningBowlerWarning': 'ആദ്യം തുടക്ക ബൗളറെ തിരഞ്ഞെടുക്കുക.',
+      'micUnavailable': 'മൈക്രോഫോൺ സ്പീച്ച് തിരിച്ചറിയൽ ലഭ്യമല്ല.',
+      'doneEditing': 'എഡിറ്റിംഗ് പൂർത്തിയായി',
+      'editPlayer': 'കളിക്കാരനെ എഡിറ്റ് ചെയ്യുക',
+      'stopListening': 'കേൾക്കുന്നത് നിർത്തുക',
+      'speakName': 'പേര് പറയുക',
+    },
+    'kn': {
+      'enterOvers': 'ಓವರ್ ನಮೂದಿಸಿ',
+      'playersReady': '11 ಆಟಗಾರರು ಸಿದ್ಧ',
+      'addTeamPlayersHint':
+          'ತಂಡದ ಹೆಸರನ್ನು ಸೇರಿಸಿ ಮತ್ತು ಎಲ್ಲಾ 11 ಆಟಗಾರರನ್ನು ದೃಢೀಕರಿಸಿ.',
+      'setupTeamRequired':
+          'ಮೊದಲು Add Players ತೆರೆಯಿರಿ ಮತ್ತು 11 ಆಟಗಾರರ ತಂಡವನ್ನು ಉಳಿಸಿ.',
+      'setupStepRequired': 'ಮುಂದುವರಿಯುವ ಮೊದಲು ಈ ಹಂತವನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.',
+      'selectOpeningPlayersWarning':
+          'ಮೊದಲು ಆರಂಭಿಕ ಬ್ಯಾಟರ್‌ಗಳು ಮತ್ತು ಆರಂಭಿಕ ಬೌಲರ್ ಆಯ್ಕೆ ಮಾಡಿ.',
+      'selectOpeningBattersWarning': 'ಮೊದಲು ಆರಂಭಿಕ ಬ್ಯಾಟರ್‌ಗಳನ್ನು ಆಯ್ಕೆ ಮಾಡಿ.',
+      'selectOpeningBowlerWarning': 'ಮೊದಲು ಆರಂಭಿಕ ಬೌಲರ್ ಆಯ್ಕೆ ಮಾಡಿ.',
+      'micUnavailable': 'ಮೈಕ್ರೋಫೋನ್ ಮಾತು ಗುರುತಿಸುವಿಕೆ ಲಭ್ಯವಿಲ್ಲ.',
+      'doneEditing': 'ಎಡಿಟ್ ಮುಗಿದಿದೆ',
+      'editPlayer': 'ಆಟಗಾರನನ್ನು ಎಡಿಟ್ ಮಾಡಿ',
+      'stopListening': 'ಕೇಳುವುದನ್ನು ನಿಲ್ಲಿಸಿ',
+      'speakName': 'ಹೆಸರು ಹೇಳಿ',
+    },
+    'pa': {
+      'enterOvers': 'ਓਵਰ ਦਰਜ ਕਰੋ',
+      'playersReady': '11 ਖਿਡਾਰੀ ਤਿਆਰ ਹਨ',
+      'addTeamPlayersHint':
+          'ਟੀਮ ਦਾ ਨਾਮ ਜੋੜੋ ਅਤੇ ਸਾਰੇ 11 ਖਿਡਾਰੀਆਂ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ.',
+      'setupTeamRequired':
+          'ਪਹਿਲਾਂ Add Players ਖੋਲ੍ਹੋ ਅਤੇ 11 ਖਿਡਾਰੀਆਂ ਵਾਲੀ ਟੀਮ ਸੇਵ ਕਰੋ.',
+      'setupStepRequired': 'ਅੱਗੇ ਵਧਣ ਤੋਂ ਪਹਿਲਾਂ ਇਹ ਕਦਮ ਪੂਰਾ ਕਰੋ.',
+      'selectOpeningPlayersWarning':
+          'ਪਹਿਲਾਂ ਸ਼ੁਰੂਆਤੀ ਬੱਲੇਬਾਜ਼ ਅਤੇ ਸ਼ੁਰੂਆਤੀ ਗੇਂਦਬਾਜ਼ ਚੁਣੋ.',
+      'selectOpeningBattersWarning': 'ਪਹਿਲਾਂ ਸ਼ੁਰੂਆਤੀ ਬੱਲੇਬਾਜ਼ ਚੁਣੋ.',
+      'selectOpeningBowlerWarning': 'ਪਹਿਲਾਂ ਸ਼ੁਰੂਆਤੀ ਗੇਂਦਬਾਜ਼ ਚੁਣੋ.',
+      'micUnavailable': 'ਮਾਈਕ੍ਰੋਫੋਨ ਸਪੀਚ ਰਿਕਗਨਿਸ਼ਨ ਉਪਲਬਧ ਨਹੀਂ ਹੈ.',
+      'doneEditing': 'ਐਡਿਟ ਪੂਰਾ',
+      'editPlayer': 'ਖਿਡਾਰੀ ਐਡਿਟ ਕਰੋ',
+      'stopListening': 'ਸੁਣਨਾ ਬੰਦ ਕਰੋ',
+      'speakName': 'ਨਾਮ ਬੋਲੋ',
+    },
+    'bn': {
+      'enterOvers': 'ওভার লিখুন',
+      'playersReady': '১১ খেলোয়াড় প্রস্তুত',
+      'addTeamPlayersHint':
+          'দলের নাম যোগ করুন এবং সব ১১ খেলোয়াড় নিশ্চিত করুন.',
+      'setupTeamRequired':
+          'প্রথমে Add Players খুলে ১১ খেলোয়াড়ের দল সেভ করুন.',
+      'setupStepRequired': 'চালিয়ে যাওয়ার আগে এই ধাপটি সম্পূর্ণ করুন.',
+      'selectOpeningPlayersWarning':
+          'প্রথমে শুরুর ব্যাটার এবং শুরুর বোলার নির্বাচন করুন.',
+      'selectOpeningBattersWarning': 'প্রথমে শুরুর ব্যাটার নির্বাচন করুন.',
+      'selectOpeningBowlerWarning': 'প্রথমে শুরুর বোলার নির্বাচন করুন.',
+      'micUnavailable': 'মাইক্রোফোন স্পিচ রিকগনিশন উপলব্ধ নয়.',
+      'doneEditing': 'এডিট শেষ',
+      'editPlayer': 'খেলোয়াড় এডিট করুন',
+      'stopListening': 'শোনা বন্ধ করুন',
+      'speakName': 'নাম বলুন',
+    },
+    'or': {
+      'enterOvers': 'ଓଭର ଲେଖନ୍ତୁ',
+      'playersReady': '୧୧ ଖେଳାଳି ପ୍ରସ୍ତୁତ',
+      'addTeamPlayersHint':
+          'ଟିମ୍ ନାମ ଯୋଡନ୍ତୁ ଏବଂ ସମସ୍ତ ୧୧ ଖେଳାଳିକୁ ନିଶ୍ଚିତ କରନ୍ତୁ.',
+      'setupTeamRequired':
+          'ପ୍ରଥମେ Add Players ଖୋଲି ୧୧ ଖେଳାଳି ଟିମ୍ ସେଭ୍ କରନ୍ତୁ.',
+      'setupStepRequired': 'ଆଗକୁ ବଢିବା ପୂର୍ବରୁ ଏହି ପଦକ୍ଷେପ ପୂରା କରନ୍ତୁ.',
+      'selectOpeningPlayersWarning':
+          'ପ୍ରଥମେ ଆରମ୍ଭ ବ୍ୟାଟର ଏବଂ ଆରମ୍ଭ ବୋଲର ବାଛନ୍ତୁ.',
+      'selectOpeningBattersWarning': 'ପ୍ରଥମେ ଆରମ୍ଭ ବ୍ୟାଟର ବାଛନ୍ତୁ.',
+      'selectOpeningBowlerWarning': 'ପ୍ରଥମେ ଆରମ୍ଭ ବୋଲର ବାଛନ୍ତୁ.',
+      'micUnavailable': 'ମାଇକ୍ରୋଫୋନ୍ ସ୍ପିଚ୍ ରିକଗ୍ନିସନ୍ ଉପଲବ୍ଧ ନୁହେଁ.',
+      'doneEditing': 'ଏଡିଟ୍ ସମାପ୍ତ',
+      'editPlayer': 'ଖେଳାଳିକୁ ଏଡିଟ୍ କରନ୍ତୁ',
+      'stopListening': 'ଶୁଣିବା ବନ୍ଦ କରନ୍ତୁ',
+      'speakName': 'ନାମ କହନ୍ତୁ',
+    },
+    'as': {
+      'enterOvers': 'অভাৰ লিখক',
+      'playersReady': '১১ খেলুৱৈ সাজু',
+      'addTeamPlayersHint': 'দলৰ নাম যোগ কৰক আৰু সকলো ১১ খেলুৱৈ নিশ্চিত কৰক.',
+      'setupTeamRequired': 'প্ৰথমে Add Players খুলি ১১ খেলুৱৈৰ দল সংৰক্ষণ কৰক.',
+      'setupStepRequired': 'আগবঢ়াৰ আগতে এই ধাপ সম্পূৰ্ণ কৰক.',
+      'selectOpeningPlayersWarning':
+          'প্ৰথমে আৰম্ভণিৰ বেটাৰ আৰু আৰম্ভণিৰ বলাৰ বাছক.',
+      'selectOpeningBattersWarning': 'প্ৰথমে আৰম্ভণিৰ বেটাৰ বাছক.',
+      'selectOpeningBowlerWarning': 'প্ৰথমে আৰম্ভণিৰ বলাৰ বাছক.',
+      'micUnavailable': 'মাইক্ৰোফোন স্পীচ চিনাক্তকৰণ উপলব্ধ নহয়.',
+      'doneEditing': 'এডিট সম্পূৰ্ণ',
+      'editPlayer': 'খেলুৱৈ এডিট কৰক',
+      'stopListening': 'শুনা বন্ধ কৰক',
+      'speakName': 'নাম কওক',
+    },
+    'gu': {
+      'enterOvers': 'ઓવર દાખલ કરો',
+      'playersReady': '11 ખેલાડીઓ તૈયાર છે',
+      'addTeamPlayersHint': 'ટીમનું નામ ઉમેરો અને બધા 11 ખેલાડીઓની પુષ્ટિ કરો.',
+      'setupTeamRequired': 'પહેલા Add Players ખોલીને 11 ખેલાડીઓની ટીમ સેવ કરો.',
+      'setupStepRequired': 'આગળ વધતા પહેલા આ પગલું પૂર્ણ કરો.',
+      'selectOpeningPlayersWarning':
+          'પહેલા ઓપનિંગ બેટર્સ અને ઓપનિંગ બોલર પસંદ કરો.',
+      'selectOpeningBattersWarning': 'પહેલા ઓપનિંગ બેટર્સ પસંદ કરો.',
+      'selectOpeningBowlerWarning': 'પહેલા ઓપનિંગ બોલર પસંદ કરો.',
+      'micUnavailable': 'માઇક્રોફોન સ્પીચ રેકગ્નિશન ઉપલબ્ધ નથી.',
+      'doneEditing': 'એડિટિંગ પૂર્ણ',
+      'editPlayer': 'ખેલાડી એડિટ કરો',
+      'stopListening': 'સાંભળવું બંધ કરો',
+      'speakName': 'નામ બોલો',
+    },
+  };
+
   String text(String key) =>
+      _setupMessages[locale.languageCode]?[key] ??
       _common[locale.languageCode]?[key] ??
       _values[locale.languageCode]?[key] ??
+      _setupMessages['en']?[key] ??
       _common['en']?[key] ??
       _values['en']![key] ??
       key;

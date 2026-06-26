@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-enum BallType { normal, wide, noBall, deadBall }
+enum BallType { normal, wide, noBall, bye, legBye, deadBall }
 
 enum WicketType { none, bowled, caught, lbw, runOut }
 
@@ -136,6 +136,10 @@ class TeamModel extends Equatable {
     this.totalRuns = 0,
     this.wickets = 0,
     this.extras = 0,
+    this.wideExtras = 0,
+    this.noBallExtras = 0,
+    this.byeExtras = 0,
+    this.legByeExtras = 0,
   });
 
   factory TeamModel.fromJson(Map<String, dynamic> json) => TeamModel(
@@ -147,6 +151,10 @@ class TeamModel extends Equatable {
     totalRuns: json['totalRuns'] as int? ?? 0,
     wickets: json['wickets'] as int? ?? 0,
     extras: json['extras'] as int? ?? 0,
+    wideExtras: json['wideExtras'] as int? ?? 0,
+    noBallExtras: json['noBallExtras'] as int? ?? 0,
+    byeExtras: json['byeExtras'] as int? ?? 0,
+    legByeExtras: json['legByeExtras'] as int? ?? 0,
   );
 
   final String id;
@@ -155,6 +163,10 @@ class TeamModel extends Equatable {
   final int totalRuns;
   final int wickets;
   final int extras;
+  final int wideExtras;
+  final int noBallExtras;
+  final int byeExtras;
+  final int legByeExtras;
 
   TeamModel copyWith({
     String? id,
@@ -163,6 +175,10 @@ class TeamModel extends Equatable {
     int? totalRuns,
     int? wickets,
     int? extras,
+    int? wideExtras,
+    int? noBallExtras,
+    int? byeExtras,
+    int? legByeExtras,
   }) => TeamModel(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -170,6 +186,10 @@ class TeamModel extends Equatable {
     totalRuns: totalRuns ?? this.totalRuns,
     wickets: wickets ?? this.wickets,
     extras: extras ?? this.extras,
+    wideExtras: wideExtras ?? this.wideExtras,
+    noBallExtras: noBallExtras ?? this.noBallExtras,
+    byeExtras: byeExtras ?? this.byeExtras,
+    legByeExtras: legByeExtras ?? this.legByeExtras,
   );
 
   Map<String, dynamic> toJson() => {
@@ -179,10 +199,25 @@ class TeamModel extends Equatable {
     'totalRuns': totalRuns,
     'wickets': wickets,
     'extras': extras,
+    'wideExtras': wideExtras,
+    'noBallExtras': noBallExtras,
+    'byeExtras': byeExtras,
+    'legByeExtras': legByeExtras,
   };
 
   @override
-  List<Object?> get props => [id, name, players, totalRuns, wickets, extras];
+  List<Object?> get props => [
+    id,
+    name,
+    players,
+    totalRuns,
+    wickets,
+    extras,
+    wideExtras,
+    noBallExtras,
+    byeExtras,
+    legByeExtras,
+  ];
 }
 
 class BallModel extends Equatable {
@@ -245,6 +280,10 @@ class BallModel extends Equatable {
 
   int get totalRuns => runs + extraRuns;
   bool get isWicket => wicketType != WicketType.none;
+  int get bowlerRunsConceded => switch (ballType) {
+    BallType.bye || BallType.legBye || BallType.deadBall => 0,
+    _ => totalRuns,
+  };
 
   BallModel copyWith({
     String? id,
@@ -505,6 +544,7 @@ class MatchModel extends Equatable {
     int? firstInningsLegalBalls,
     String? previousBowlerId,
     bool clearPreviousBowler = false,
+    bool clearFirstInnings = false,
   }) => MatchModel(
     id: id ?? this.id,
     teamA: teamA ?? this.teamA,
@@ -526,12 +566,18 @@ class MatchModel extends Equatable {
     status: status ?? this.status,
     syncStatus: syncStatus ?? this.syncStatus,
     result: clearResult ? null : result ?? this.result,
-    firstInningsBattingTeamId:
-        firstInningsBattingTeamId ?? this.firstInningsBattingTeamId,
-    firstInningsRuns: firstInningsRuns ?? this.firstInningsRuns,
-    firstInningsWickets: firstInningsWickets ?? this.firstInningsWickets,
-    firstInningsLegalBalls:
-        firstInningsLegalBalls ?? this.firstInningsLegalBalls,
+    firstInningsBattingTeamId: clearFirstInnings
+        ? null
+        : firstInningsBattingTeamId ?? this.firstInningsBattingTeamId,
+    firstInningsRuns: clearFirstInnings
+        ? null
+        : firstInningsRuns ?? this.firstInningsRuns,
+    firstInningsWickets: clearFirstInnings
+        ? null
+        : firstInningsWickets ?? this.firstInningsWickets,
+    firstInningsLegalBalls: clearFirstInnings
+        ? null
+        : firstInningsLegalBalls ?? this.firstInningsLegalBalls,
     previousBowlerId: clearPreviousBowler
         ? null
         : previousBowlerId ?? this.previousBowlerId,

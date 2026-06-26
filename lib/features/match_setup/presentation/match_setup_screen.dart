@@ -32,6 +32,8 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
   int _step = 0;
   int _overs = 5;
   String _batting = 'A';
+  bool _highlightOpeningBatters = false;
+  bool _highlightOpeningBowler = false;
 
   @override
   void initState() {
@@ -108,15 +110,16 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
             _bowlerIndex != null,
     };
     if (!valid) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _step < 2
-                ? 'Open Add Players and save the 11-player team first.'
-                : 'Complete this step before continuing.',
-          ),
-        ),
-      );
+      if (_step == 4) {
+        setState(() {
+          _highlightOpeningBatters =
+              _strikerIndex == null || _nonStrikerIndex == null;
+          _highlightOpeningBowler = _bowlerIndex == null;
+        });
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_validationMessage())));
       return;
     }
     if (_step < 4) {
@@ -124,6 +127,20 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
     } else {
       _start();
     }
+  }
+
+  String _validationMessage() {
+    if (_step < 2) return context.tr('setupTeamRequired');
+    if (_step == 4) {
+      final missingBatters = _strikerIndex == null || _nonStrikerIndex == null;
+      final missingBowler = _bowlerIndex == null;
+      if (missingBatters && missingBowler) {
+        return context.tr('selectOpeningPlayersWarning');
+      }
+      if (missingBatters) return context.tr('selectOpeningBattersWarning');
+      if (missingBowler) return context.tr('selectOpeningBowlerWarning');
+    }
+    return context.tr('setupStepRequired');
   }
 
   List<TextEditingController> get _battingPlayers =>
@@ -148,6 +165,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
       setState(() {
         _strikerIndex = selected[0];
         _nonStrikerIndex = selected[1];
+        _highlightOpeningBatters = false;
       });
     }
   }
@@ -167,7 +185,10 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
       ),
     );
     if (selected != null && mounted) {
-      setState(() => _bowlerIndex = selected);
+      setState(() {
+        _bowlerIndex = selected;
+        _highlightOpeningBowler = false;
+      });
     }
   }
 
@@ -355,7 +376,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: context.tr('customOvers'),
-                    hintText: 'Enter overs',
+                    hintText: context.tr('enterOvers'),
                     prefixIcon: const Icon(Icons.edit_note),
                   ),
                   onChanged: (value) {
@@ -383,6 +404,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                             '${_battingPlayers[_nonStrikerIndex!].text}',
                   icon: Icons.sports_cricket,
                   complete: _strikerIndex != null,
+                  highlighted: _highlightOpeningBatters,
                   buttonLabel: _strikerIndex == null
                       ? context.tr('addBatters')
                       : context.tr('editBatters'),
@@ -396,6 +418,7 @@ class _MatchSetupScreenState extends ConsumerState<MatchSetupScreen> {
                       : _bowlingPlayers[_bowlerIndex!].text,
                   icon: Icons.sports_baseball,
                   complete: _bowlerIndex != null,
+                  highlighted: _highlightOpeningBowler,
                   buttonLabel: _bowlerIndex == null
                       ? context.tr('addBowler')
                       : context.tr('editBowler'),
@@ -449,8 +472,8 @@ class _TeamRosterCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             configured
-                ? '11 players ready'
-                : 'Add the team name and confirm all 11 players.',
+                ? context.tr('playersReady')
+                : context.tr('addTeamPlayersHint'),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 18),
@@ -478,6 +501,7 @@ class _OpeningSelectionCard extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.complete,
+    required this.highlighted,
     required this.buttonLabel,
     required this.onPressed,
   });
@@ -486,14 +510,23 @@ class _OpeningSelectionCard extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final bool complete;
+  final bool highlighted;
   final String buttonLabel;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) => Card(
-    color: complete
+    color: highlighted
+        ? Theme.of(context).colorScheme.errorContainer
+        : complete
         ? Theme.of(context).colorScheme.primaryContainer
         : Theme.of(context).colorScheme.surfaceContainerHighest,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(16),
+      side: highlighted
+          ? BorderSide(color: Theme.of(context).colorScheme.error, width: 2)
+          : BorderSide.none,
+    ),
     child: Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -739,11 +772,9 @@ class _RosterDialogState extends State<_RosterDialog> {
     }
     if (!_speechAvailable) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Microphone speech recognition is unavailable.'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(context.tr('micUnavailable'))));
       }
       return;
     }
@@ -861,15 +892,26 @@ class _RosterDialogState extends State<_RosterDialog> {
                                     hintText: context.tr('playerName'),
                                   ),
                                 )
-                              : Text(
-                                  widget.players[index].text,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
+                              : InkWell(
+                                  borderRadius: BorderRadius.circular(8),
+                                  onTap: () => _editPlayer(index),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 10,
+                                    ),
+                                    child: Text(
+                                      widget.players[index].text,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ),
                         ),
                         IconButton(
-                          tooltip: editing ? 'Done editing' : 'Edit player',
+                          tooltip: editing
+                              ? context.tr('doneEditing')
+                              : context.tr('editPlayer'),
                           onPressed: () {
                             if (editing) {
                               setState(() => _editingIndex = null);
@@ -880,7 +922,9 @@ class _RosterDialogState extends State<_RosterDialog> {
                           icon: Icon(editing ? Icons.check : Icons.edit),
                         ),
                         IconButton.filledTonal(
-                          tooltip: listening ? 'Stop listening' : 'Speak name',
+                          tooltip: listening
+                              ? context.tr('stopListening')
+                              : context.tr('speakName'),
                           onPressed: () => _toggleListening(index),
                           style: IconButton.styleFrom(
                             backgroundColor: listening

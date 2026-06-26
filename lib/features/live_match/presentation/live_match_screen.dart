@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cricket_scorer_pro/core/ads/innings_banner_popup.dart';
-import 'package:cricket_scorer_pro/features/live_match/engine/match_insights.dart';
 import 'package:cricket_scorer_pro/features/live_match/providers/match_provider.dart';
 import 'package:cricket_scorer_pro/core/localization/app_localizations.dart';
 import 'package:cricket_scorer_pro/shared/models/cricket_models.dart';
@@ -171,21 +170,6 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
                             ),
                           ),
                         ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.auto_awesome, color: Colors.orange),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(const MatchInsights().forMatch(match)),
                       ),
                     ],
                   ),
@@ -382,12 +366,16 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
             for (final value in [
               BallType.wide,
               BallType.noBall,
+              BallType.bye,
+              BallType.legBye,
               BallType.deadBall,
             ])
               ListTile(
                 title: Text(switch (value) {
-                  BallType.wide => 'Wide (+1)',
-                  BallType.noBall => 'No Ball (+1)',
+                  BallType.wide => 'Wide',
+                  BallType.noBall => 'No Ball',
+                  BallType.bye => 'Bye',
+                  BallType.legBye => 'Leg Bye',
                   BallType.deadBall => 'Dead Ball',
                   _ => '',
                 }),
@@ -397,10 +385,63 @@ class _LiveMatchScreenState extends ConsumerState<LiveMatchScreen> {
         ),
       ),
     );
-    if (type != null && context.mounted) {
+    if (type == null || !context.mounted) return;
+    if (type == BallType.deadBall) {
       await _score(context, ref, match, runs: 0, type: type);
+      return;
+    }
+    final values = switch (type) {
+      BallType.wide => [0, 1, 2, 3, 4],
+      BallType.noBall => [0, 1, 2, 3, 4, 6],
+      BallType.bye || BallType.legBye => [1, 2, 3, 4],
+      _ => <int>[],
+    };
+    final runs = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_extraTitle(type), style: const TextStyle(fontSize: 20)),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  for (final value in values)
+                    FilledButton.tonal(
+                      onPressed: () => Navigator.pop(context, value),
+                      child: Text(_extraOption(type, value)),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (runs != null && context.mounted) {
+      await _score(context, ref, match, runs: runs, type: type);
     }
   }
+
+  String _extraTitle(BallType type) => switch (type) {
+    BallType.wide => 'Wide runs',
+    BallType.noBall => 'No Ball + bat runs',
+    BallType.bye => 'Bye runs',
+    BallType.legBye => 'Leg Bye runs',
+    _ => 'Extras',
+  };
+
+  String _extraOption(BallType type, int runs) => switch (type) {
+    BallType.wide => runs == 0 ? 'Wide (1)' : 'Wide +$runs (${runs + 1})',
+    BallType.noBall => runs == 0 ? 'No Ball (1)' : 'No Ball +$runs',
+    BallType.bye => 'Bye +$runs',
+    BallType.legBye => 'Leg Bye +$runs',
+    _ => '$runs',
+  };
 
   Future<void> _wicketSheet(
     BuildContext context,
@@ -886,8 +927,10 @@ class _BallBadge extends StatelessWidget {
     final label = ball.isWicket
         ? 'W'
         : switch (ball.ballType) {
-            BallType.wide => 'Wd',
-            BallType.noBall => 'Nb',
+            BallType.wide => ball.extraRuns == 1 ? 'Wd' : '${ball.extraRuns}Wd',
+            BallType.noBall => ball.runs == 0 ? 'Nb' : 'Nb+${ball.runs}',
+            BallType.bye => 'B${ball.extraRuns}',
+            BallType.legBye => 'Lb${ball.extraRuns}',
             BallType.deadBall => 'Db',
             BallType.normal => '${ball.runs}',
           };
@@ -926,105 +969,38 @@ class _InningsBreakScreen extends ConsumerWidget {
 
   final MatchModel match;
 
-  Future<String?> _selectPlayer(
-    BuildContext context, {
-    required String title,
-    required TeamModel team,
-    String? excludedId,
-    IconData icon = Icons.person,
-  }) => showModalBottomSheet<String>(
-    context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    isDismissible: false,
-    enableDrag: false,
-    builder: (context) => PopScope(
-      canPop: false,
-      child: SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.sizeOf(context).height * .72,
-          ),
-          child: Column(
-            children: [
-              ListTile(
-                leading: Icon(icon),
-                title: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final player in team.players)
-                      Card(
-                        margin: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        child: ListTile(
-                          enabled: !player.isOut && player.id != excludedId,
-                          leading: CircleAvatar(child: Icon(icon)),
-                          title: Text(player.name),
-                          subtitle: Text(
-                            player.isOut
-                                ? 'Out - unavailable'
-                                : player.id == excludedId
-                                ? 'Already selected'
-                                : 'Available',
-                          ),
-                          trailing: player.isOut || player.id == excludedId
-                              ? const Icon(Icons.block)
-                              : const Icon(Icons.check_circle_outline),
-                          onTap: player.isOut || player.id == excludedId
-                              ? null
-                              : () => Navigator.pop(context, player.id),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
+  Future<List<String>?> _selectOpeningBatters(BuildContext context) =>
+      showDialog<List<String>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PopScope(
+          canPop: false,
+          child: _SecondInningsBattersDialog(
+            players: match.bowlingTeam.players,
           ),
         ),
-      ),
-    ),
-  );
+      );
+
+  Future<String?> _selectOpeningBowler(BuildContext context) =>
+      showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => PopScope(
+          canPop: false,
+          child: _SecondInningsBowlerDialog(players: match.battingTeam.players),
+        ),
+      );
 
   Future<void> _start(BuildContext context, WidgetRef ref) async {
-    final batting = match.bowlingTeam;
-    final bowling = match.battingTeam;
-    final striker = await _selectPlayer(
-      context,
-      title: 'Select Striker',
-      team: batting,
-      icon: Icons.sports_cricket,
-    );
-    if (striker == null || !context.mounted) return;
-    final nonStriker = await _selectPlayer(
-      context,
-      title: 'Select Non-striker',
-      team: batting,
-      excludedId: striker,
-      icon: Icons.people_alt_outlined,
-    );
-    if (nonStriker == null || !context.mounted) return;
-    final bowler = await _selectPlayer(
-      context,
-      title: 'Select Opening Bowler',
-      team: bowling,
-      icon: Icons.sports_baseball,
-    );
+    final batters = await _selectOpeningBatters(context);
+    if (batters == null || !context.mounted) return;
+    final bowler = await _selectOpeningBowler(context);
     if (bowler == null) return;
     await ref
         .read(currentMatchProvider.notifier)
         .startSecondInnings(
-          strikerId: striker,
-          nonStrikerId: nonStriker,
+          strikerId: batters[0],
+          nonStrikerId: batters[1],
           bowlerId: bowler,
         );
   }
@@ -1081,5 +1057,177 @@ class _InningsBreakScreen extends ConsumerWidget {
         ),
       ),
     ),
+  );
+}
+
+class _SecondInningsBattersDialog extends StatefulWidget {
+  const _SecondInningsBattersDialog({required this.players});
+
+  final List<PlayerModel> players;
+
+  @override
+  State<_SecondInningsBattersDialog> createState() =>
+      _SecondInningsBattersDialogState();
+}
+
+class _SecondInningsBattersDialogState
+    extends State<_SecondInningsBattersDialog> {
+  String? strikerId;
+  String? nonStrikerId;
+  String selectedRole = 'striker';
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(context.tr('openingBatters')),
+    content: SizedBox(
+      width: double.maxFinite,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'striker',
+                icon: const Icon(Icons.sports_cricket),
+                label: Text(context.tr('striker')),
+              ),
+              ButtonSegment(
+                value: 'nonStriker',
+                icon: const Icon(Icons.people_outline),
+                label: Text(context.tr('nonStriker')),
+              ),
+            ],
+            selected: {selectedRole},
+            onSelectionChanged: (selection) =>
+                setState(() => selectedRole = selection.first),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            selectedRole == 'striker'
+                ? context.tr('selectStriker')
+                : context.tr('selectNonStriker'),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Flexible(
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: widget.players.length,
+              itemBuilder: (context, index) {
+                final player = widget.players[index];
+                final isStriker = strikerId == player.id;
+                final isNonStriker = nonStrikerId == player.id;
+                final blocked =
+                    player.isOut ||
+                    (selectedRole == 'striker' ? isNonStriker : isStriker);
+                return Card(
+                  color: isStriker || isNonStriker
+                      ? Theme.of(context).colorScheme.primaryContainer
+                      : null,
+                  child: ListTile(
+                    enabled: !blocked,
+                    leading: CircleAvatar(
+                      child: isStriker
+                          ? const Icon(Icons.sports_cricket)
+                          : isNonStriker
+                          ? const Icon(Icons.people_outline)
+                          : Text('${index + 1}'),
+                    ),
+                    title: Text(player.name),
+                    subtitle: Text(
+                      isStriker
+                          ? context.tr('striker')
+                          : isNonStriker
+                          ? context.tr('nonStriker')
+                          : player.isOut
+                          ? 'Out - unavailable'
+                          : context.tr('available'),
+                    ),
+                    trailing: isStriker || isNonStriker
+                        ? const Icon(Icons.check_circle)
+                        : blocked
+                        ? const Icon(Icons.block)
+                        : const Icon(Icons.touch_app_outlined),
+                    onTap: blocked
+                        ? null
+                        : () => setState(() {
+                            if (selectedRole == 'striker') {
+                              strikerId = player.id;
+                              selectedRole = 'nonStriker';
+                            } else {
+                              nonStrikerId = player.id;
+                            }
+                          }),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      FilledButton.icon(
+        onPressed: strikerId != null && nonStrikerId != null
+            ? () => Navigator.pop(context, [strikerId!, nonStrikerId!])
+            : null,
+        icon: const Icon(Icons.check),
+        label: Text(context.tr('confirm')),
+      ),
+    ],
+  );
+}
+
+class _SecondInningsBowlerDialog extends StatefulWidget {
+  const _SecondInningsBowlerDialog({required this.players});
+
+  final List<PlayerModel> players;
+
+  @override
+  State<_SecondInningsBowlerDialog> createState() =>
+      _SecondInningsBowlerDialogState();
+}
+
+class _SecondInningsBowlerDialogState
+    extends State<_SecondInningsBowlerDialog> {
+  String? selectedId;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Select Opening Bowler'),
+    content: SizedBox(
+      width: double.maxFinite,
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: widget.players.length,
+        itemBuilder: (context, index) {
+          final player = widget.players[index];
+          final selected = selectedId == player.id;
+          return Card(
+            color: selected
+                ? Theme.of(context).colorScheme.primaryContainer
+                : null,
+            child: ListTile(
+              leading: const Icon(Icons.sports_baseball),
+              title: Text(player.name),
+              trailing: selected ? const Icon(Icons.check_circle) : null,
+              onTap: () => setState(() => selectedId = player.id),
+            ),
+          );
+        },
+      ),
+    ),
+    actions: [
+      FilledButton.icon(
+        onPressed: selectedId == null
+            ? null
+            : () => Navigator.pop(context, selectedId),
+        icon: const Icon(Icons.check),
+        label: Text(context.tr('confirm')),
+      ),
+    ],
   );
 }

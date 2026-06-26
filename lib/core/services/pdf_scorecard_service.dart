@@ -317,8 +317,10 @@ class PdfScorecardService {
   String _ballLabel(BallModel ball) {
     if (ball.isWicket) return 'W';
     return switch (ball.ballType) {
-      BallType.wide => 'Wd',
-      BallType.noBall => 'Nb',
+      BallType.wide => ball.extraRuns == 1 ? 'Wd' : '${ball.extraRuns}Wd',
+      BallType.noBall => ball.runs == 0 ? 'Nb' : 'Nb+${ball.runs}',
+      BallType.bye => 'B${ball.extraRuns}',
+      BallType.legBye => 'Lb${ball.extraRuns}',
       BallType.deadBall => 'Db',
       BallType.normal => '${ball.runs}',
     };
